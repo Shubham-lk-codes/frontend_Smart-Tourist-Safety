@@ -1,11 +1,10 @@
-
-
 import React, { useState } from 'react';
 import GeoFenceTracker from './components/GeoFenceTracker';
 import LiveGeoMap from './components/LiveGeoMap';
 import UserRegistration from './components/UserRegistration';
 import UserLookup from './components/UserLookup';
 import BlockchainInfo from './components/BlockchainInfo';
+import AddGeofence from './components/AddGeofence'; // नया component
 
 function App() {
   const [activeTab, setActiveTab] = useState('blockchain');
@@ -15,7 +14,8 @@ function App() {
     { id: 'register', name: 'User Registration' },
     { id: 'lookup', name: 'User Lookup' },
     { id: 'tracker', name: 'Geo Tracker' },
-    { id: 'map', name: 'Live Map' }
+    { id: 'map', name: 'Live Map' },
+    { id: 'addGeofence', name: 'Add Geofence' } // नया tab
   ];
 
   const renderContent = () => {
@@ -28,6 +28,8 @@ function App() {
         return <GeoFenceTracker />;
       case 'map':
         return <LiveGeoMap />;
+      case 'addGeofence':
+        return <AddGeofence />;
       case 'blockchain':
       default:
         return <BlockchainInfo />;
@@ -42,21 +44,21 @@ function App() {
             Smart Tourist Safety
           </h1>
           <p className="text-gray-600">
-            Blockchain-powered user management system
+            Blockchain-powered user management with Geo-fencing
           </p>
         </header>
 
         {/* Tab Navigation */}
         <div className="flex justify-center mb-8">
-          <div className="bg-white rounded-lg p-1 shadow-sm flex flex-wrap justify-center">
+          <div className="bg-white rounded-lg p-1 shadow-sm flex flex-wrap justify-center max-w-4xl">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 rounded-md font-medium transition duration-200 m-1 ${
+                className={`px-4 py-2 rounded-md font-medium transition duration-200 m-1 text-sm ${
                   activeTab === tab.id
-                    ? 'bg-blue-500 text-white'
-                    : 'text-gray-600 hover:text-blue-500'
+                    ? 'bg-blue-500 text-white shadow-md'
+                    : 'text-gray-600 hover:text-blue-500 hover:bg-blue-50'
                 }`}
               >
                 {tab.name}
@@ -72,7 +74,7 @@ function App() {
 
         {/* Status */}
         <footer className="text-center mt-8 text-sm text-gray-500">
-          <p>Blockchain User ID System - Secure and Immutable</p>
+          <p>Blockchain User ID System with Real-time Geo-fencing</p>
         </footer>
       </div>
     </div>
