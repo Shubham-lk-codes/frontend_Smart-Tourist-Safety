@@ -7,6 +7,8 @@ import UserLookup from './components/UserLookup';
 import BlockchainInfo from './components/BlockchainInfo';
 import AddGeofence from './components/AddGeofence';
 import Tourist from './pages/turist';
+import Police from './pages/police';
+
 
 function App() {
   return (
@@ -29,6 +31,7 @@ function App() {
               <Route path="/tourist/*" element={<Tourist />} />
               
               {/* Police Routes */}
+              <Route path="/police/*" element={<Police />} />
               <Route path="/police/lookup" element={<UserLookup />} />
               <Route path="/police/tracker" element={<GeoFenceTracker />} />
               <Route path="/police/map" element={<LiveGeoMap />} />
