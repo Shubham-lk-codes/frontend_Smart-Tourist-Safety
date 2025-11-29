@@ -38,7 +38,7 @@ const UserRegistration = () => {
   };
 
   return (
-    <div className="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6">
+    <div className=" w-full mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6">
       <h2 className="text-2xl font-bold text-gray-800 mb-4">User Registration</h2>
       
       {user ? (
