@@ -9,6 +9,7 @@ import AddGeofence from './components/AddGeofence';
 import Tourist from './pages/turist';
 import Police from './pages/police';
 import Tourism from './pages/Tourism';
+import Rescue from './pages/Rescue';
 
 function App() {
   return (
@@ -41,19 +42,12 @@ function App() {
              
               
               {/* Rescue Team Routes */}
-              <Route path="/rescue-team/lookup" element={<UserLookup />} />
+              <Route path="/rescue-team" element={<Rescue />} />
               <Route path="/rescue-team/tracker" element={<GeoFenceTracker />} />
               <Route path="/rescue-team/map" element={<LiveGeoMap />} />
               
-              {/* Admin Routes */}
-              <Route path="/admin/blockchain" element={<BlockchainInfo />} />
-              <Route path="/admin/geofence" element={<AddGeofence />} />
-              <Route path="/admin/users" element={<UserLookup />} />
-              
-              {/* System Admin Routes */}
-              <Route path="/system-admin/blockchain" element={<BlockchainInfo />} />
-              <Route path="/system-admin/geofence" element={<AddGeofence />} />
-              <Route path="/system-admin/users" element={<UserLookup />} />
+             
+           
               
               {/* Default route */}
               <Route path="/" element={<Navigate to="/tourist" replace />} />
