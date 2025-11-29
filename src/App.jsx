@@ -8,7 +8,7 @@ import BlockchainInfo from './components/BlockchainInfo';
 import AddGeofence from './components/AddGeofence';
 import Tourist from './pages/turist';
 import Police from './pages/police';
-
+import Tourism from './pages/Tourism';
 
 function App() {
   return (
@@ -37,9 +37,8 @@ function App() {
               <Route path="/police/map" element={<LiveGeoMap />} />
               
               {/* Tourism Department Routes */}
-              <Route path="/tourism-department/blockchain" element={<BlockchainInfo />} />
-              <Route path="/tourism-department/geofence" element={<AddGeofence />} />
-              <Route path="/tourism-department/map" element={<LiveGeoMap />} />
+              <Route path="/tourism-department" element={<Tourism />} />
+             
               
               {/* Rescue Team Routes */}
               <Route path="/rescue-team/lookup" element={<UserLookup />} />
