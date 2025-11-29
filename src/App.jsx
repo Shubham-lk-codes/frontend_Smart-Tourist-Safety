@@ -10,6 +10,7 @@ import Tourist from './pages/turist';
 import Police from './pages/police';
 import Tourism from './pages/Tourism';
 import Rescue from './pages/Rescue';
+import Dashboard from './components/Dashboard';
 
 function App() {
   return (
@@ -45,6 +46,7 @@ function App() {
               <Route path="/rescue-team" element={<Rescue />} />
               <Route path="/rescue-team/tracker" element={<GeoFenceTracker />} />
               <Route path="/rescue-team/map" element={<LiveGeoMap />} />
+              <Route path="/dashboard" element={ <Dashboard />} />
               
              
            

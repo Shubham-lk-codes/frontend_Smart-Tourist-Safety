@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-const AddGeofence = () => {
+const AddGeofence = ({ onGeofenceAdded }) => {
   const [formData, setFormData] = useState({
     name: '',
+    type: 'circle',
     center: { lat: '', lng: '' },
-    radius: '100'
+    radius: '100',
+    coordinates: []
   });
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [currentLocation, setCurrentLocation] = useState(null);
+  const [polygonPoints, setPolygonPoints] = useState([]);
 
   const API_BASE = 'http://localhost:3000/api/geo';
 
@@ -22,6 +25,12 @@ const AddGeofence = () => {
           ...prev.center,
           [name]: value
         }
+      }));
+    } else if (name === 'type') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        coordinates: value === 'polygon' ? [] : undefined
       }));
     } else {
       setFormData(prev => ({
@@ -57,13 +66,28 @@ const AddGeofence = () => {
       (err) => {
         setMessage('❌ Error getting location: ' + err.message);
         setLoading(false);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
       }
     );
+  };
+
+  const addPolygonPoint = () => {
+    if (formData.center.lat && formData.center.lng) {
+      const newPoint = {
+        lat: parseFloat(formData.center.lat),
+        lng: parseFloat(formData.center.lng)
+      };
+      setPolygonPoints(prev => [...prev, newPoint]);
+      setFormData(prev => ({
+        ...prev,
+        center: { lat: '', lng: '' }
+      }));
+      setMessage(`✅ Point ${polygonPoints.length + 1} added to polygon`);
+    }
+  };
+
+  const clearPolygon = () => {
+    setPolygonPoints([]);
+    setMessage('Polygon points cleared');
   };
 
   const handleSubmit = async (e) => {
@@ -74,22 +98,31 @@ const AddGeofence = () => {
     try {
       const geofenceData = {
         name: formData.name,
-        center: {
+        type: formData.type,
+        center: formData.type === 'circle' ? {
           lat: parseFloat(formData.center.lat),
           lng: parseFloat(formData.center.lng)
-        },
-        radius: parseFloat(formData.radius)
+        } : undefined,
+        radius: formData.type === 'circle' ? parseFloat(formData.radius) : undefined,
+        coordinates: formData.type === 'polygon' ? polygonPoints : undefined
       };
 
-      const response = await axios.post(`${API_BASE}/add`, geofenceData);
+      const response = await axios.post(`${API_BASE}/geofences`, geofenceData);
 
       setMessage('✅ Geofence added successfully!');
       setFormData({
         name: '',
+        type: 'circle',
         center: { lat: '', lng: '' },
-        radius: '100'
+        radius: '100',
+        coordinates: []
       });
+      setPolygonPoints([]);
       setCurrentLocation(null);
+      
+      if (onGeofenceAdded) {
+        onGeofenceAdded();
+      }
     } catch (err) {
       setMessage('❌ Error adding geofence: ' + (err.response?.data?.error || err.message));
     } finally {
@@ -98,19 +131,83 @@ const AddGeofence = () => {
   };
 
   return (
-    <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg overflow-hidden p-6">
+    <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden p-6">
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Add Safe Zone</h2>
+        <h2 className="text-2xl font-bold text-gray-800">Create Safe Zone</h2>
         <p className="text-gray-600 text-sm mt-1">
-          Create new geofence boundaries for tourist safety
+          Define geofence boundaries for tourist safety monitoring
         </p>
       </div>
       
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Geofence Type */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Zone Type *
+          </label>
+          <div className="grid grid-cols-2 gap-4">
+            <label className={`relative flex cursor-pointer rounded-lg border p-4 focus:outline-none ${
+              formData.type === 'circle' 
+                ? 'border-blue-500 bg-blue-50' 
+                : 'border-gray-300'
+            }`}>
+              <input
+                type="radio"
+                name="type"
+                value="circle"
+                checked={formData.type === 'circle'}
+                onChange={handleChange}
+                className="sr-only"
+              />
+              <div className="flex w-full items-center justify-between">
+                <div className="flex items-center">
+                  <div className="text-sm">
+                    <div className="font-medium text-gray-900">Circular Zone</div>
+                    <div className="text-gray-500">Define center and radius</div>
+                  </div>
+                </div>
+                <div className="h-5 w-5 rounded-full border-2 border-gray-300 flex items-center justify-center">
+                  {formData.type === 'circle' && (
+                    <div className="h-3 w-3 rounded-full bg-blue-600"></div>
+                  )}
+                </div>
+              </div>
+            </label>
+
+            <label className={`relative flex cursor-pointer rounded-lg border p-4 focus:outline-none ${
+              formData.type === 'polygon' 
+                ? 'border-blue-500 bg-blue-50' 
+                : 'border-gray-300'
+            }`}>
+              <input
+                type="radio"
+                name="type"
+                value="polygon"
+                checked={formData.type === 'polygon'}
+                onChange={handleChange}
+                className="sr-only"
+              />
+              <div className="flex w-full items-center justify-between">
+                <div className="flex items-center">
+                  <div className="text-sm">
+                    <div className="font-medium text-gray-900">Polygonal Zone</div>
+                    <div className="text-gray-500">Define custom shape</div>
+                  </div>
+                </div>
+                <div className="h-5 w-5 rounded-full border-2 border-gray-300 flex items-center justify-center">
+                  {formData.type === 'polygon' && (
+                    <div className="h-3 w-3 rounded-full bg-blue-600"></div>
+                  )}
+                </div>
+              </div>
+            </label>
+          </div>
+        </div>
+
         {/* Geofence Name */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Safe Zone Name *
+            Zone Name *
           </label>
           <input
             type="text"
@@ -124,9 +221,9 @@ const AddGeofence = () => {
         </div>
 
         {/* Location Coordinates */}
-        <div className="space-y-2">
+        <div className="space-y-3">
           <label className="block text-sm font-medium text-gray-700">
-            Center Coordinates *
+            {formData.type === 'circle' ? 'Center Coordinates *' : 'Polygon Points *'}
           </label>
           
           <button
@@ -154,7 +251,7 @@ const AddGeofence = () => {
             )}
           </button>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Latitude</label>
               <input
@@ -163,7 +260,7 @@ const AddGeofence = () => {
                 name="lat"
                 value={formData.center.lat}
                 onChange={handleChange}
-                required
+                required={formData.type === 'circle'}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 placeholder="28.6139"
               />
@@ -177,39 +274,85 @@ const AddGeofence = () => {
                 name="lng"
                 value={formData.center.lng}
                 onChange={handleChange}
-                required
+                required={formData.type === 'circle'}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 placeholder="77.2090"
               />
             </div>
           </div>
+
+          {/* Polygon Controls */}
+          {formData.type === 'polygon' && (
+            <div className="space-y-3">
+              <div className="flex space-x-2">
+                <button
+                  type="button"
+                  onClick={addPolygonPoint}
+                  disabled={!formData.center.lat || !formData.center.lng}
+                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-3 rounded text-sm disabled:opacity-50"
+                >
+                  Add Point
+                </button>
+                <button
+                  type="button"
+                  onClick={clearPolygon}
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-3 rounded text-sm"
+                >
+                  Clear All
+                </button>
+              </div>
+              
+              {polygonPoints.length > 0 && (
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-sm font-medium text-gray-700 mb-2">
+                    Polygon Points ({polygonPoints.length})
+                  </p>
+                  <div className="max-h-32 overflow-y-auto space-y-1">
+                    {polygonPoints.map((point, index) => (
+                      <div key={index} className="flex justify-between items-center text-xs bg-white p-2 rounded">
+                        <span>Point {index + 1}</span>
+                        <span className="font-mono">
+                          {point.lat.toFixed(6)}, {point.lng.toFixed(6)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Minimum 3 points required for polygon
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Radius */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Safety Radius (meters) *
-          </label>
-          <input
-            type="number"
-            name="radius"
-            value={formData.radius}
-            onChange={handleChange}
-            required
-            min="1"
-            step="1"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter radius in meters"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Recommended: 100-500 meters for tourist areas
-          </p>
-        </div>
+        {/* Radius (only for circle) */}
+        {formData.type === 'circle' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Safety Radius (meters) *
+            </label>
+            <input
+              type="number"
+              name="radius"
+              value={formData.radius}
+              onChange={handleChange}
+              required
+              min="1"
+              step="1"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter radius in meters"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Recommended: 100-500 meters for tourist areas
+            </p>
+          </div>
+        )}
 
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || (formData.type === 'polygon' && polygonPoints.length < 3)}
           className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 disabled:opacity-50 flex items-center justify-center"
         >
           {loading ? (
@@ -218,14 +361,14 @@ const AddGeofence = () => {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              Adding Safe Zone...
+              Creating Safe Zone...
             </>
           ) : (
             <>
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              Add Safe Zone
+              Create Safe Zone
             </>
           )}
         </button>
