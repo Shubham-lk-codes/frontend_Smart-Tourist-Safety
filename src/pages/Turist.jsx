@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import GeoFenceTracker from '../components/GeoFenceTracker';
 import LiveGeoMap from '../components/LiveGeoMap';
 import SafetyMap from '../components/SafetyMap';
+import GeofenceList from '../components/GeofenceList';
 
 function Tourist() {
   const [panicStatus, setPanicStatus] = useState(false);
@@ -174,6 +175,7 @@ function Tourist() {
           <Route path="/safety-map" element={<SafetyMap />} />
         </Routes>
       </div>
+      <GeofenceList />
     </div>
   );
 }
