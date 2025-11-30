@@ -11,7 +11,7 @@ function Tourist() {
 
   // WebSocket connection setup
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8080');
+    const ws = new WebSocket('ws://localhost:3000');
     
     ws.onopen = () => {
       console.log('WebSocket Connected');
@@ -76,7 +76,7 @@ function Tourist() {
 
     // Also send to backend API
     try {
-      const response = await fetch('http://localhost:3001/api/panic-alert', {
+      const response = await fetch('http://localhost:3000/api/panic-alert', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

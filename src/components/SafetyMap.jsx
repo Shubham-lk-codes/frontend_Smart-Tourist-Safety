@@ -12,7 +12,7 @@ function SafetyMap() {
 
   const fetchSafeZones = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/safe-zones');
+      const response = await fetch('http://localhost:3000/api/safe-zones');
       const data = await response.json();
       setSafeZones(data);
     } catch (error) {
@@ -22,7 +22,7 @@ function SafetyMap() {
 
   const fetchEmergencyContacts = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/emergency-contacts');
+      const response = await fetch('http://localhost:3000/api/emergency-contacts');
       const data = await response.json();
       setEmergencyContacts(data);
     } catch (error) {

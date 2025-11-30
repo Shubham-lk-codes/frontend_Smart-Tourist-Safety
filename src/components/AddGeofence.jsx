@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { MapContainer, TileLayer, Marker, Popup, Circle, Polygon, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle, Polygon, useMap, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -25,6 +25,61 @@ const MapUpdater = ({ center }) => {
   return null;
 };
 
+// Custom hook for accurate area calculation
+const useGeofenceArea = () => {
+  // More accurate calculation using Haversine formula for polygons
+  const calculatePolygonArea = (coordinates) => {
+    if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 3) return 0;
+
+    const earthRadius = 6371000; // Earth's radius in meters
+    let area = 0;
+    const n = coordinates.length;
+
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const point1 = coordinates[i];
+      const point2 = coordinates[j];
+
+      if (!point1 || !point2) continue;
+
+      const lat1 = (point1.lat * Math.PI) / 180;
+      const lat2 = (point2.lat * Math.PI) / 180;
+      const dLng = ((point2.lng - point1.lng) * Math.PI) / 180;
+
+      area += Math.atan2(
+        Math.tan(dLng / 2) * (Math.tan(lat1 / 2) + Math.tan(lat2 / 2)),
+        1 + Math.tan(lat1 / 2) * Math.tan(lat2 / 2) * Math.cos(dLng)
+      );
+    }
+
+    area = 2 * Math.pow(earthRadius, 2) * Math.abs(area);
+    return area;
+  };
+
+  const calculateCircleArea = (radius) => {
+    if (!radius || isNaN(radius)) return 0;
+    return Math.PI * radius * radius;
+  };
+
+  const formatArea = (area) => {
+    if (!area || isNaN(area)) return '0 m²';
+    
+    if (area < 10000) {
+      return `${area.toFixed(0)} m²`;
+    } else if (area < 1000000) {
+      return `${(area / 10000).toFixed(2)} hectares`;
+    } else {
+      return `${(area / 1000000).toFixed(2)} km²`;
+    }
+  };
+
+  return {
+    calculatePolygonArea,
+    calculateCircleArea,
+    formatArea
+  };
+};
+
 const AddGeofence = ({ onGeofenceAdded }) => {
   const [formData, setFormData] = useState({
     name: '',
@@ -39,6 +94,8 @@ const AddGeofence = ({ onGeofenceAdded }) => {
   const [polygonPoints, setPolygonPoints] = useState([]);
   const [geofences, setGeofences] = useState([]);
   const [mapCenter, setMapCenter] = useState([20.5937, 78.9629]); // Default India center
+
+  const { calculatePolygonArea, calculateCircleArea, formatArea } = useGeofenceArea();
 
   const API_BASE = 'http://localhost:3000/api/geo';
 
@@ -63,36 +120,6 @@ const AddGeofence = ({ onGeofenceAdded }) => {
       setGeofences([]);
       setMessage('❌ Error loading existing geofences');
     }
-  };
-
-  // Calculate area of a circle in square meters
-  const calculateCircleArea = (radius) => {
-    if (!radius || isNaN(radius)) return 0;
-    return Math.PI * radius * radius;
-  };
-
-  // Calculate area of a polygon using the shoelace formula
-  const calculatePolygonArea = (coordinates) => {
-    if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 3) return 0;
-    
-    let area = 0;
-    const n = coordinates.length;
-    
-    for (let i = 0; i < n; i++) {
-      const j = (i + 1) % n;
-      const current = coordinates[i];
-      const next = coordinates[j];
-      
-      if (!current || !next || typeof current.lng !== 'number' || typeof next.lat !== 'number') {
-        continue;
-      }
-      
-      area += current.lng * next.lat;
-      area -= next.lng * current.lat;
-    }
-    
-    area = Math.abs(area) / 2;
-    return area * 111319.9 * 111319.9;
   };
 
   const handleChange = (e) => {
@@ -228,19 +255,6 @@ const AddGeofence = ({ onGeofenceAdded }) => {
       setMessage('❌ Error adding geofence: ' + (err.response?.data?.error || err.message));
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Format area for display
-  const formatArea = (area) => {
-    if (!area || isNaN(area)) return '0 m²';
-    
-    if (area < 10000) {
-      return `${area.toFixed(0)} m²`;
-    } else if (area < 1000000) {
-      return `${(area / 10000).toFixed(2)} hectares`;
-    } else {
-      return `${(area / 1000000).toFixed(2)} km²`;
     }
   };
 
@@ -449,6 +463,11 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                       <p className="text-sm text-gray-500 mt-3">
                         ✅ Minimum 3 points required for polygon
                       </p>
+                      {polygonPoints.length >= 3 && (
+                        <p className="text-sm text-green-600 font-semibold mt-2">
+                          📐 Estimated Area: {formatArea(calculatePolygonArea(polygonPoints))}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -475,6 +494,11 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                 <p className="text-sm text-gray-500 mt-2 ml-2">
                   🎯 Recommended: 100-500 meters for tourist areas
                 </p>
+                {formData.radius && (
+                  <p className="text-sm text-green-600 font-semibold mt-2 ml-2">
+                    📐 Estimated Area: {formatArea(calculateCircleArea(parseFloat(formData.radius)))}
+                  </p>
+                )}
               </div>
             )}
 
@@ -575,6 +599,7 @@ const AddGeofence = ({ onGeofenceAdded }) => {
               {/* Show all geofences on map */}
               {safeGeofences.map((fence) => {
                 if (fence.type === 'circle' && fence.center) {
+                  const area = calculateCircleArea(fence.radius);
                   return (
                     <Circle
                       key={fence._id || fence.id}
@@ -587,18 +612,31 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                         weight: 2
                       }}
                     >
+                      <Tooltip permanent direction="center" className="custom-tooltip">
+                        <div className="text-center font-semibold">
+                          {fence.name}<br />
+                          <span className="text-xs">{formatArea(area)}</span>
+                        </div>
+                      </Tooltip>
                       <Popup>
                         <div className="text-center">
                           <strong>{fence.name}</strong><br />
                           Type: Circular Zone<br />
                           Radius: {fence.radius}m<br />
-                          Area: {formatArea(calculateCircleArea(fence.radius))}
+                          Area: {formatArea(area)}<br />
+                          Center: {fence.center.lat.toFixed(6)}, {fence.center.lng.toFixed(6)}
                         </div>
                       </Popup>
                     </Circle>
                   );
                 } else if (fence.type === 'polygon' && fence.coordinates) {
                   const polygonCoords = fence.coordinates.map(coord => [coord.lat, coord.lng]);
+                  const area = calculatePolygonArea(fence.coordinates);
+                  
+                  // Calculate center for tooltip
+                  const centerLat = fence.coordinates.reduce((sum, coord) => sum + coord.lat, 0) / fence.coordinates.length;
+                  const centerLng = fence.coordinates.reduce((sum, coord) => sum + coord.lng, 0) / fence.coordinates.length;
+                  
                   return (
                     <Polygon
                       key={fence._id || fence.id}
@@ -610,12 +648,21 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                         weight: 2
                       }}
                     >
+                      <Tooltip permanent direction="center" className="custom-tooltip">
+                        <div className="text-center font-semibold">
+                          {fence.name}<br />
+                          <span className="text-xs">{formatArea(area)}</span>
+                        </div>
+                      </Tooltip>
                       <Popup>
                         <div className="text-center">
                           <strong>{fence.name}</strong><br />
                           Type: Polygonal Zone<br />
                           Points: {fence.coordinates.length}<br />
-                          Area: {formatArea(calculatePolygonArea(fence.coordinates))}
+                          Area: {formatArea(area)}<br />
+                          Coordinates: {fence.coordinates.map(coord => 
+                            `(${coord.lat.toFixed(4)}, ${coord.lng.toFixed(4)})`
+                          ).join(', ')}
                         </div>
                       </Popup>
                     </Polygon>
@@ -626,9 +673,16 @@ const AddGeofence = ({ onGeofenceAdded }) => {
             </MapContainer>
           </div>
 
-          {/* Geofences List */}
+          {/* Geofences List with Area Summary */}
           <div className="bg-white/60 backdrop-blur-sm rounded-2xl border-2 border-gray-200/50 p-6">
-            <h4 className="text-xl font-semibold text-gray-800 mb-4">Created Safety Zones</h4>
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="text-xl font-semibold text-gray-800">Created Safety Zones</h4>
+              {safeGeofences.length > 0 && (
+                <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">
+                  Total: {safeGeofences.length} zone{safeGeofences.length !== 1 ? 's' : ''}
+                </div>
+              )}
+            </div>
             
             {safeGeofences.length === 0 ? (
               <div className="text-center py-8">
@@ -641,56 +695,58 @@ const AddGeofence = ({ onGeofenceAdded }) => {
               </div>
             ) : (
               <div className="space-y-4 max-h-64 overflow-y-auto">
-                {safeGeofences.map((fence, index) => (
-                  <div key={fence._id || fence.id || index} className="bg-white/80 p-4 rounded-xl border border-gray-200 shadow-sm">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h5 className="font-semibold text-gray-800">{fence.name}</h5>
-                        <div className="flex items-center mt-1">
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${fence.type === 'circle' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
-                            {fence.type === 'circle' ? '⭕ Circular' : '🔷 Polygonal'}
-                          </span>
-                          <span className="ml-2 text-sm text-gray-600">
-                            Area: {formatArea(
-                              fence.type === 'circle' 
-                                ? calculateCircleArea(fence.radius) 
-                                : calculatePolygonArea(fence.coordinates)
-                            )}
-                          </span>
+                {safeGeofences.map((fence, index) => {
+                  const area = fence.type === 'circle' 
+                    ? calculateCircleArea(fence.radius)
+                    : calculatePolygonArea(fence.coordinates);
+                  
+                  return (
+                    <div key={fence._id || fence.id || index} className="bg-white/80 p-4 rounded-xl border border-gray-200 shadow-sm">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h5 className="font-semibold text-gray-800">{fence.name}</h5>
+                          <div className="flex items-center mt-1">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${fence.type === 'circle' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
+                              {fence.type === 'circle' ? '⭕ Circular' : '🔷 Polygonal'}
+                            </span>
+                            <span className="ml-2 text-sm font-semibold text-green-600">
+                              Area: {formatArea(area)}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                      <button 
-                        className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition-colors"
-                        onClick={async () => {
-                          try {
-                            if (!fence._id && !fence.id) {
-                              throw new Error('Geofence ID is missing');
+                        <button 
+                          className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition-colors"
+                          onClick={async () => {
+                            try {
+                              if (!fence._id && !fence.id) {
+                                throw new Error('Geofence ID is missing');
+                              }
+                              
+                              await axios.delete(`${API_BASE}/geofences/${fence._id || fence.id}`);
+                              setMessage('✅ Geofence deleted successfully!');
+                              await fetchGeofences();
+                            } catch (err) {
+                              setMessage('❌ Error deleting geofence: ' + (err.response?.data?.error || err.message));
                             }
-                            
-                            await axios.delete(`${API_BASE}/geofences/${fence._id || fence.id}`);
-                            setMessage('✅ Geofence deleted successfully!');
-                            await fetchGeofences();
-                          } catch (err) {
-                            setMessage('❌ Error deleting geofence: ' + (err.response?.data?.error || err.message));
-                          }
-                        }}
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
+                          }}
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                      {fence.type === 'circle' ? (
+                        <p className="text-sm text-gray-600 mt-2">
+                          Center: {fence.center?.lat?.toFixed(6) || 'N/A'}, {fence.center?.lng?.toFixed(6) || 'N/A'} • Radius: {fence.radius || 'N/A'}m
+                        </p>
+                      ) : (
+                        <p className="text-sm text-gray-600 mt-2">
+                          Points: {fence.coordinates?.length || 0} • Perimeter: ~{(Math.sqrt(area) * 4).toFixed(0)}m
+                        </p>
+                      )}
                     </div>
-                    {fence.type === 'circle' ? (
-                      <p className="text-sm text-gray-600 mt-2">
-                        Center: {fence.center?.lat?.toFixed(6) || 'N/A'}, {fence.center?.lng?.toFixed(6) || 'N/A'} • Radius: {fence.radius || 'N/A'}m
-                      </p>
-                    ) : (
-                      <p className="text-sm text-gray-600 mt-2">
-                        Points: {fence.coordinates?.length || 0} • Area: {formatArea(calculatePolygonArea(fence.coordinates))}
-                      </p>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
