@@ -167,7 +167,7 @@ function Tourist() {
       )}
 
       {/* Nested Routes */}
-      <div className="container mx-auto px-4 py-6">
+      <div className="container w-full mx-auto px-4 py-6">
         <Routes>
           <Route path="/" element={<Navigate to="/tourist/tracker" replace />} />
           <Route path="/tracker" element={<GeoFenceTracker />} />
