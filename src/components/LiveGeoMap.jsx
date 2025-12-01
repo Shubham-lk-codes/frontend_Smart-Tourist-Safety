@@ -1,5 +1,67 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
+import { MapContainer, TileLayer, Marker, Popup, Circle, Polygon, Tooltip, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+// Fix for default markers in React-Leaflet
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+// Custom icons
+const touristIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+const policeIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+const otherUserIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+const panicIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+  iconSize: [30, 48],
+  iconAnchor: [15, 48],
+  popupAnchor: [1, -34],
+  shadowSize: [48, 48]
+});
+
+// Component to handle auto-centering of map
+const MapCenterHandler = ({ center, zoom, userLocation }) => {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (userLocation && center) {
+      map.setView(center, zoom);
+      console.log('📍 Map centered to:', center);
+    }
+  }, [center, zoom, map, userLocation]);
+  
+  return null;
+};
 
 const LiveGeoMap = () => {
   const [boundaries, setBoundaries] = useState([]);
@@ -10,14 +72,44 @@ const LiveGeoMap = () => {
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [userCount, setUserCount] = useState(0);
   const [geofenceStatus, setGeofenceStatus] = useState(null);
-  const [userType, setUserType] = useState('tourist'); // 'tourist' or 'police'
+  const [userType, setUserType] = useState('tourist');
+  const [mapCenter, setMapCenter] = useState(null); // Initially null, will be set by user location
+  const [mapZoom, setMapZoom] = useState(16); // Zoom level for street view
+  const [emergencyAlerts, setEmergencyAlerts] = useState([]);
+  const [initialLocationSet, setInitialLocationSet] = useState(false);
   
   const watchIdRef = useRef(null);
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
+  const mapRef = useRef(null);
   
   const API_BASE = 'http://localhost:3000/api/geo';
   const WS_URL = 'ws://localhost:3000';
+
+  // Get initial user location when component mounts
+  useEffect(() => {
+    if (!initialLocationSet && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setMapCenter([latitude, longitude]);
+          setInitialLocationSet(true);
+          console.log('📍 Initial location set:', latitude, longitude);
+        },
+        (error) => {
+          console.log('⚠️ Could not get initial location, using default');
+          // Use a default location if geolocation fails
+          setMapCenter([21.1458, 79.0881]); // Default: Nagpur
+          setInitialLocationSet(true);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0
+        }
+      );
+    }
+  }, [initialLocationSet]);
 
   // WebSocket connection with reconnection
   const connectWebSocket = useCallback(() => {
@@ -76,7 +168,8 @@ const LiveGeoMap = () => {
                     return [...prev, {
                       id: data.clientId,
                       ...data.data,
-                      lastUpdate: data.timestamp
+                      lastUpdate: data.timestamp,
+                      userType: data.data.userType || 'tourist'
                     }];
                   }
                 });
@@ -98,12 +191,41 @@ const LiveGeoMap = () => {
               setUserCount(data.userCount);
               break;
 
+            case 'panic_alert':
+              setEmergencyAlerts(prev => [
+                ...prev.filter(alert => alert.id !== data.id),
+                data
+              ]);
+              if (userType === 'police') {
+                setStatus(`🚨 New emergency alert from ${data.clientId}`);
+                
+                // Auto-center map to emergency location
+                if (data.location && mapRef.current) {
+                  setTimeout(() => {
+                    mapRef.current.setView([data.location.lat, data.location.lng], 16);
+                    setMapCenter([data.location.lat, data.location.lng]);
+                  }, 100);
+                }
+              }
+              break;
+
             case 'panic_acknowledged':
               setStatus(`🚨 ${data.message}`);
               break;
 
             case 'emergency_acknowledged_by_authority':
+              setEmergencyAlerts(prev => 
+                prev.filter(alert => alert.id !== data.alertId)
+              );
               setStatus(`✅ ${data.message}`);
+              break;
+
+            case 'emergency_status_update':
+              setEmergencyAlerts(prev =>
+                prev.map(alert => 
+                  alert.id === data.alert.id ? { ...alert, ...data.alert } : alert
+                )
+              );
               break;
               
             default:
@@ -180,6 +302,22 @@ const LiveGeoMap = () => {
     setStatus('🚨 PANIC BUTTON PRESSED! Help is on the way...');
   };
 
+  // Acknowledge emergency (for police)
+  const acknowledgeEmergency = (alertId) => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      setStatus('❌ Not connected to WebSocket');
+      return;
+    }
+
+    wsRef.current.send(JSON.stringify({
+      type: 'emergency_acknowledged',
+      alertId: alertId
+    }));
+    
+    setEmergencyAlerts(prev => prev.filter(alert => alert.id !== alertId));
+    setStatus(`✅ Emergency ${alertId} acknowledged`);
+  };
+
   // Switch user type
   const switchUserType = (newType) => {
     setUserType(newType);
@@ -222,6 +360,15 @@ const LiveGeoMap = () => {
         };
         
         setUserLocation(newLocation);
+        
+        // Auto-center map to user location (only when tracking starts or significant movement)
+        if (!mapCenter || (mapCenter && (
+          Math.abs(mapCenter[0] - latitude) > 0.0001 || 
+          Math.abs(mapCenter[1] - longitude) > 0.0001
+        ))) {
+          setMapCenter([latitude, longitude]);
+          console.log('📍 Map auto-centered to user location:', latitude, longitude);
+        }
 
         // Send location via WebSocket
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -235,17 +382,16 @@ const LiveGeoMap = () => {
           }));
         }
 
-        // Check geofence status with improved error handling
+        // Check geofence status
         try {
           const response = await axios.get(`${API_BASE}/check`, {
             params: { lat: latitude, lng: longitude },
-            timeout: 5000 // 5 second timeout
+            timeout: 5000
           });
           setGeofenceStatus(response.data);
           setStatus(`${response.data.message} | 📍 Live updating...`);
         } catch (err) {
           console.error('Geofence check error:', err);
-          // Don't show error if it's just a timeout or temporary issue
           if (isTracking) {
             setStatus('📍 Live tracking - Temporary geofence service issue');
           }
@@ -260,7 +406,7 @@ const LiveGeoMap = () => {
         enableHighAccuracy: true,
         timeout: 10000,
         maximumAge: 0,
-        distanceFilter: 1 // Update every 1 meter movement
+        distanceFilter: 5 // Update every 5 meters movement
       }
     );
   };
@@ -272,6 +418,185 @@ const LiveGeoMap = () => {
     }
     setIsTracking(false);
     setStatus('⏹️ Tracking stopped');
+  };
+
+  // Manual center to user location
+  const centerToUserLocation = () => {
+    if (userLocation && mapRef.current) {
+      mapRef.current.setView([userLocation.lat, userLocation.lng], 16);
+      setMapCenter([userLocation.lat, userLocation.lng]);
+      setStatus('📍 Map centered to your location');
+    }
+  };
+
+  // Real-time Map Component with Leaflet
+  const RealTimeMap = () => {
+    if (!mapCenter) {
+      return (
+        <div className="w-full h-96 rounded-2xl overflow-hidden border-2 border-gray-300 shadow-lg flex items-center justify-center bg-gray-100">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading map...</p>
+            <p className="text-sm text-gray-500 mt-2">Waiting for location permission</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="w-full h-96 rounded-2xl overflow-hidden border-2 border-gray-300 shadow-lg">
+        <MapContainer
+          center={mapCenter}
+          zoom={mapZoom}
+          style={{ height: '100%', width: '100%' }}
+          ref={mapRef}
+          whenCreated={(mapInstance) => {
+            mapRef.current = mapInstance;
+            // Add zoom change event listener
+            mapInstance.on('zoom', () => {
+              setMapZoom(mapInstance.getZoom());
+            });
+            
+            // Add move event listener
+            mapInstance.on('move', () => {
+              const center = mapInstance.getCenter();
+              setMapCenter([center.lat, center.lng]);
+            });
+          }}
+        >
+          <MapCenterHandler 
+            center={mapCenter} 
+            zoom={mapZoom} 
+            userLocation={userLocation}
+          />
+          
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          
+          {/* Draw boundaries */}
+          {boundaries.map((boundary, index) => {
+            if (boundary.type === 'circle' && boundary.center && boundary.radius) {
+              return (
+                <Circle
+                  key={boundary._id || index}
+                  center={[boundary.center.lat, boundary.center.lng]}
+                  radius={boundary.radius}
+                  pathOptions={{
+                    color: '#10B981',
+                    fillColor: '#10B981',
+                    fillOpacity: 0.2,
+                    weight: 2
+                  }}
+                >
+                  <Tooltip permanent direction="center">
+                    <div className="font-bold text-green-800">🛡️ {boundary.name}</div>
+                  </Tooltip>
+                </Circle>
+              );
+            } else if (boundary.type === 'polygon' && boundary.coordinates) {
+              return (
+                <Polygon
+                  key={boundary._id || index}
+                  positions={boundary.coordinates.map(coord => [coord.lat, coord.lng])}
+                  pathOptions={{
+                    color: '#8B5CF6',
+                    fillColor: '#8B5CF6',
+                    fillOpacity: 0.2,
+                    weight: 2
+                  }}
+                >
+                  <Popup>
+                    <div className="font-bold text-purple-800">📍 {boundary.name}</div>
+                  </Popup>
+                </Polygon>
+              );
+            }
+            return null;
+          })}
+          
+          {/* Other Users */}
+          {otherUsers.map((user) => (
+            <Marker
+              key={user.id}
+              position={[user.lat, user.lng]}
+              icon={user.userType === 'police' ? policeIcon : otherUserIcon}
+            >
+              <Popup>
+                <div className="p-2">
+                  <div className="font-bold">
+                    {user.userType === 'police' ? '👮 Police' : '👤 Tourist'}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    Lat: {user.lat.toFixed(6)}<br />
+                    Lng: {user.lng.toFixed(6)}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Last update: {new Date(user.lastUpdate).toLocaleTimeString()}
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+          
+          {/* Current User Location */}
+          {userLocation && (
+            <Marker
+              position={[userLocation.lat, userLocation.lng]}
+              icon={userType === 'police' ? policeIcon : touristIcon}
+            >
+              <Popup>
+                <div className="p-2">
+                  <div className="font-bold text-blue-600">
+                    🎯 YOU ({userType.toUpperCase()})
+                  </div>
+                  <div className="text-sm">
+                    Latitude: {userLocation.lat.toFixed(6)}<br />
+                    Longitude: {userLocation.lng.toFixed(6)}<br />
+                    Accuracy: ±{userLocation.accuracy?.toFixed(1) || '0'}m
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Updated: {new Date(userLocation.timestamp).toLocaleTimeString()}
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+          )}
+          
+          {/* Emergency Alerts */}
+          {emergencyAlerts.map((alert) => (
+            <Marker
+              key={alert.id}
+              position={[alert.location.lat, alert.location.lng]}
+              icon={panicIcon}
+            >
+              <Popup>
+                <div className="p-2">
+                  <div className="font-bold text-red-600">🚨 EMERGENCY ALERT</div>
+                  <div className="text-sm">
+                    From: {alert.clientId}<br />
+                    Type: {alert.data?.emergencyType || 'General'}<br />
+                    Message: {alert.data?.message || 'Need assistance!'}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Time: {new Date(alert.timestamp).toLocaleTimeString()}
+                  </div>
+                  {userType === 'police' && (
+                    <button
+                      onClick={() => acknowledgeEmergency(alert.id)}
+                      className="mt-2 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+                    >
+                      Acknowledge
+                    </button>
+                  )}
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
+      </div>
+    );
   };
 
   // Cleanup on unmount
@@ -289,7 +614,7 @@ const LiveGeoMap = () => {
     };
   }, []);
 
-  // Fetch boundaries on mount with error handling
+  // Fetch boundaries on mount
   useEffect(() => {
     const fetchBoundaries = async () => {
       try {
@@ -314,66 +639,6 @@ const LiveGeoMap = () => {
 
     fetchBoundaries();
   }, []);
-
-  // Mock Map with real-time updates
-  const RealTimeMap = () => (
-    <div className="w-full h-96 bg-gradient-to-br from-blue-50 to-cyan-100 border-2 border-blue-300 rounded-2xl relative overflow-hidden shadow-inner">
-      {/* Background Grid */}
-      <div className="absolute inset-0 bg-grid-blue-200/50"></div>
-      
-      {/* Boundaries */}
-      {boundaries.map((boundary, index) => (
-        <div
-          key={boundary._id || index}
-          className="absolute w-48 h-48 bg-green-200/40 border-2 border-green-500 rounded-full opacity-70 animate-pulse"
-          style={{
-            left: '50%',
-            top: '50%',
-            transform: 'translate(-50%, -50%)',
-          }}
-        >
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-xs font-bold text-green-800 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full shadow-lg border border-green-200">
-            🛡️ {boundary.name}
-          </div>
-        </div>
-      ))}
-      
-      {/* Other Users */}
-      {otherUsers.map((user, index) => (
-        <div
-          key={user.id}
-          className="absolute w-6 h-6 bg-purple-500 border-2 border-white rounded-full shadow-lg animate-pulse"
-          style={{
-            left: `${40 + (index * 10)}%`,
-            top: `${30 + (index * 15)}%`,
-          }}
-        >
-          <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-xs font-semibold bg-purple-100/90 backdrop-blur-sm px-2 py-1 rounded shadow border border-purple-200">
-            👤
-          </div>
-        </div>
-      ))}
-      
-      {/* Current User Location */}
-      {userLocation && (
-        <div
-          className="absolute w-10 h-10 bg-red-500 border-3 border-white rounded-full shadow-lg animate-bounce"
-          style={{
-            left: '50%',
-            top: '50%',
-            transform: 'translate(-50%, -50%)',
-          }}
-        >
-          <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 text-sm font-bold bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full shadow-lg border border-red-200">
-            🎯 YOU
-          </div>
-          <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 text-xs text-red-600 font-mono bg-white/90 backdrop-blur-sm px-2 py-1 rounded shadow border border-red-200">
-            {userType.toUpperCase()}
-          </div>
-        </div>
-      )}
-    </div>
-  );
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -496,39 +761,71 @@ const LiveGeoMap = () => {
                 Current Zone: <span className="font-bold">{geofenceStatus.boundary}</span>
               </div>
             )}
+            {userLocation && (
+              <div className="mt-2 text-xs text-gray-600">
+                Location: {userLocation.lat.toFixed(6)}, {userLocation.lng.toFixed(6)}
+              </div>
+            )}
           </div>
 
           {/* Real-time Map */}
           <div className="bg-gradient-to-br from-gray-50 to-blue-50 p-6 rounded-2xl border-2 border-gray-200/50 shadow-inner backdrop-blur-sm">
-            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-              <svg className="w-6 h-6 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-              </svg>
-              Live Tracking Map
-            </h3>
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-4">
+              <h3 className="text-xl font-bold text-gray-800 flex items-center">
+                <svg className="w-6 h-6 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+                Live Tracking Map
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {userLocation && (
+                  <button
+                    onClick={centerToUserLocation}
+                    disabled={!userLocation}
+                    className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center transition-all"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                    </svg>
+                    Center on Me
+                  </button>
+                )}
+                <div className="text-sm text-gray-600 bg-white/80 px-3 py-2 rounded-lg border border-gray-300">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">Zoom:</span> 
+                    <span className="font-mono">{mapZoom}</span>
+                  </div>
+                  {mapCenter && (
+                    <div className="text-xs mt-1">
+                      Lat: {mapCenter[0].toFixed(6)}, Lng: {mapCenter[1].toFixed(6)}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
             <RealTimeMap />
             
             {/* Legend */}
-            <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-gray-200/50">
-              <div className="flex items-center space-x-2 text-sm">
-                <div className="w-4 h-4 bg-green-500 rounded-full animate-pulse"></div>
+            <div className="flex flex-wrap gap-3 mt-4 pt-4 border-t border-gray-200/50">
+              <div className="flex items-center space-x-2 text-sm bg-white/80 px-3 py-1.5 rounded-lg border border-gray-200">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                 <span className="text-gray-700">Safe Zones</span>
               </div>
-              <div className="flex items-center space-x-2 text-sm">
-                <div className="w-4 h-4 bg-red-500 rounded-full"></div>
-                <span className="text-gray-700">Your Location</span>
+              <div className="flex items-center space-x-2 text-sm bg-white/80 px-3 py-1.5 rounded-lg border border-gray-200">
+                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <span className="text-gray-700">Tourist</span>
               </div>
-              <div className="flex items-center space-x-2 text-sm">
-                <div className="w-4 h-4 bg-purple-500 rounded-full animate-pulse"></div>
+              <div className="flex items-center space-x-2 text-sm bg-white/80 px-3 py-1.5 rounded-lg border border-gray-200">
+                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                <span className="text-gray-700">Police</span>
+              </div>
+              <div className="flex items-center space-x-2 text-sm bg-white/80 px-3 py-1.5 rounded-lg border border-gray-200">
+                <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
                 <span className="text-gray-700">Other Users</span>
               </div>
-              <div className="flex items-center space-x-2 text-sm">
-                <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
-                <span className="text-gray-700">Tourist Mode</span>
-              </div>
-              <div className="flex items-center space-x-2 text-sm">
-                <div className="w-4 h-4 bg-red-500 rounded-full"></div>
-                <span className="text-gray-700">Police Mode</span>
+              <div className="flex items-center space-x-2 text-sm bg-white/80 px-3 py-1.5 rounded-lg border border-gray-200">
+                <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                <span className="text-gray-700">Emergency</span>
               </div>
             </div>
           </div>
@@ -547,7 +844,7 @@ const LiveGeoMap = () => {
                 {boundaries.slice(0, 5).map((boundary, index) => (
                   <div key={boundary._id || index} className="flex items-center justify-between p-3 bg-white/80 backdrop-blur-sm rounded-xl border border-green-200/50 shadow-sm">
                     <div className="flex items-center space-x-3">
-                      <div className={`w-3 h-3 rounded-full ${boundary.type === 'circle' ? 'bg-green-500' : 'bg-purple-500'} animate-pulse`}></div>
+                      <div className={`w-3 h-3 rounded-full ${boundary.type === 'circle' ? 'bg-green-500' : 'bg-purple-500'}`}></div>
                       <div>
                         <span className="text-sm font-semibold text-gray-800">{boundary.name}</span>
                         <div className="text-xs text-gray-500">
@@ -609,13 +906,13 @@ const LiveGeoMap = () => {
               </div>
             )}
 
-            {/* Online Users */}
+            {/* Online Users & Emergencies */}
             <div className="bg-gradient-to-br from-gray-50 to-purple-50 p-6 rounded-2xl border-2 border-purple-200/50 shadow backdrop-blur-sm">
               <h3 className="font-bold text-gray-700 mb-4 flex items-center text-lg">
                 <svg className="w-6 h-6 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
-                Online Users
+                Online Users & Emergencies
               </h3>
               <div className="space-y-3">
                 <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-purple-200/50">
@@ -625,14 +922,44 @@ const LiveGeoMap = () => {
                   </div>
                 </div>
                 
+                {emergencyAlerts.length > 0 && (
+                  <div className="bg-red-50/80 backdrop-blur-sm p-3 rounded-xl border border-red-200/50">
+                    <div className="text-sm font-semibold text-red-700 mb-2 flex items-center">
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                      </svg>
+                      Active Emergencies ({emergencyAlerts.length})
+                    </div>
+                    <div className="space-y-2">
+                      {emergencyAlerts.slice(0, 3).map((alert) => (
+                        <div key={alert.id} className="flex items-center justify-between text-xs p-2 bg-white/50 rounded">
+                          <span className="text-red-600 font-medium truncate">Alert: {alert.clientId}</span>
+                          {userType === 'police' && (
+                            <button
+                              onClick={() => acknowledgeEmergency(alert.id)}
+                              className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs"
+                            >
+                              Ack
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
                 {otherUsers.length > 0 && (
                   <div className="bg-white/80 backdrop-blur-sm p-3 rounded-xl border border-purple-200/50">
                     <div className="text-sm font-semibold text-gray-700 mb-2">Other Users:</div>
                     <div className="space-y-2">
                       {otherUsers.slice(0, 5).map((user, index) => (
                         <div key={user.id} className="flex items-center space-x-2 text-xs">
-                          <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
-                          <span className="text-gray-600">User {index + 1}</span>
+                          <div className={`w-2 h-2 rounded-full ${
+                            user.userType === 'police' ? 'bg-red-500' : 'bg-purple-500'
+                          }`}></div>
+                          <span className="text-gray-600">
+                            {user.userType === 'police' ? '👮 Police' : '👤 Tourist'}
+                          </span>
                           <span className="text-gray-400 ml-auto">
                             {user.lastUpdate ? new Date(user.lastUpdate).toLocaleTimeString() : 'Just now'}
                           </span>

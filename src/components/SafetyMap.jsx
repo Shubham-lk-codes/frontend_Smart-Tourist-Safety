@@ -285,7 +285,7 @@ function SafetyMap() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Safe Zones */}
-        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 md:p-5 shadow-sm border border-green-100">
+        <div className="bg-linear-to-br from-green-50 to-emerald-50 rounded-xl p-4 md:p-5 shadow-sm border border-green-100">
           <div className="flex justify-between items-center mb-4">
             <h4 className="text-base md:text-lg font-semibold text-green-800 flex items-center gap-2">
               <span className="text-lg md:text-xl">✅</span> Safe Zones Nearby
@@ -346,7 +346,7 @@ function SafetyMap() {
         </div>
 
         {/* Emergency Contacts */}
-        <div className="bg-gradient-to-br from-red-50 to-pink-50 rounded-xl p-4 md:p-5 shadow-sm border border-red-100">
+        <div className="bg-linear-to-br from-red-50 to-pink-50 rounded-xl p-4 md:p-5 shadow-sm border border-red-100">
           <div className="flex justify-between items-center mb-4">
             <h4 className="text-base md:text-lg font-semibold text-red-800 flex items-center gap-2">
               <span className="text-lg md:text-xl">📞</span> Emergency Contacts
@@ -410,7 +410,7 @@ function SafetyMap() {
 
       {/* Selected Details Panel */}
       {(selectedZone || selectedContact) && (
-        <div className="mt-4 md:mt-6 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 md:p-5 shadow-sm border border-blue-200">
+        <div className="mt-4 md:mt-6 bg-linear-to-r from-blue-50 to-cyan-50 rounded-xl p-4 md:p-5 shadow-sm border border-blue-200">
           <h4 className="text-base md:text-lg font-semibold text-blue-800 mb-3">📋 Details</h4>
           {selectedZone && (
             <div className="space-y-3">
@@ -499,7 +499,7 @@ function SafetyMap() {
       )}
 
       {/* Safety Tips */}
-      <div className="mt-4 md:mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 md:p-5 shadow-sm border border-blue-200">
+      <div className="mt-4 md:mt-6 bg-linear-to-r from-blue-50 to-indigo-50 rounded-xl p-4 md:p-5 shadow-sm border border-blue-200">
         <h4 className="text-base md:text-lg font-semibold text-blue-800 mb-3 flex items-center gap-2">
           <span className="text-lg md:text-xl">💡</span> Safety Tips & Guidelines
         </h4>
