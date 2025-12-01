@@ -138,6 +138,10 @@ const AddGeofence = ({ onGeofenceAdded }) => {
         [name]: value,
         coordinates: value === 'polygon' ? [] : undefined
       }));
+      // Clear polygon points when switching types
+      if (value === 'circle') {
+        setPolygonPoints([]);
+      }
     } else {
       setFormData(prev => ({
         ...prev,
@@ -175,22 +179,34 @@ const AddGeofence = ({ onGeofenceAdded }) => {
       (err) => {
         setMessage('❌ Error getting location: ' + err.message);
         setLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000
       }
     );
   };
 
   const addPolygonPoint = () => {
     if (formData.center.lat && formData.center.lng) {
-      const newPoint = {
-        lat: parseFloat(formData.center.lat),
-        lng: parseFloat(formData.center.lng)
-      };
+      const lat = parseFloat(formData.center.lat);
+      const lng = parseFloat(formData.center.lng);
+      
+      if (isNaN(lat) || isNaN(lng)) {
+        setMessage('❌ Please enter valid coordinates');
+        return;
+      }
+
+      const newPoint = { lat, lng };
       setPolygonPoints(prev => [...prev, newPoint]);
       setFormData(prev => ({
         ...prev,
         center: { lat: '', lng: '' }
       }));
       setMessage(`✅ Point ${polygonPoints.length + 1} added to polygon`);
+    } else {
+      setMessage('❌ Please enter both latitude and longitude');
     }
   };
 
@@ -205,6 +221,7 @@ const AddGeofence = ({ onGeofenceAdded }) => {
     setMessage('');
 
     try {
+      // Enhanced validation
       if (!formData.name.trim()) {
         throw new Error('Zone name is required');
       }
@@ -213,46 +230,80 @@ const AddGeofence = ({ onGeofenceAdded }) => {
         if (!formData.center.lat || !formData.center.lng) {
           throw new Error('Center coordinates are required for circular zone');
         }
-        if (!formData.radius || formData.radius <= 0) {
-          throw new Error('Valid radius is required');
+        
+        const lat = parseFloat(formData.center.lat);
+        const lng = parseFloat(formData.center.lng);
+        const radius = parseFloat(formData.radius);
+        
+        if (isNaN(lat) || isNaN(lng)) {
+          throw new Error('Invalid center coordinates');
+        }
+        if (!formData.radius || isNaN(radius) || radius <= 0) {
+          throw new Error('Valid radius is required (must be greater than 0)');
         }
       }
 
-      if (formData.type === 'polygon' && polygonPoints.length < 3) {
-        throw new Error('At least 3 points are required for polygon');
+      if (formData.type === 'polygon') {
+        if (polygonPoints.length < 3) {
+          throw new Error('At least 3 points are required for polygon');
+        }
       }
 
+      // Prepare data for API
       const geofenceData = {
         name: formData.name.trim(),
         type: formData.type,
-        center: formData.type === 'circle' ? {
-          lat: parseFloat(formData.center.lat),
-          lng: parseFloat(formData.center.lng)
-        } : undefined,
-        radius: formData.type === 'circle' ? parseFloat(formData.radius) : undefined,
-        coordinates: formData.type === 'polygon' ? polygonPoints : undefined
       };
 
-      const response = await axios.post(`${API_BASE}/geofences`, geofenceData);
+      // Add circle-specific data
+      if (formData.type === 'circle') {
+        geofenceData.center = {
+          lat: parseFloat(formData.center.lat),
+          lng: parseFloat(formData.center.lng)
+        };
+        geofenceData.radius = parseFloat(formData.radius);
+      }
 
-      setMessage('✅ Geofence added successfully!');
-      setFormData({
-        name: '',
-        type: 'circle',
-        center: { lat: '', lng: '' },
-        radius: '100',
-        coordinates: []
+      // Add polygon-specific data
+      if (formData.type === 'polygon') {
+        geofenceData.coordinates = polygonPoints;
+      }
+
+      console.log('Sending geofence data:', geofenceData);
+
+      const response = await axios.post(`${API_BASE}/geofences`, geofenceData, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: 10000
       });
-      setPolygonPoints([]);
-      setCurrentLocation(null);
 
-      await fetchGeofences();
+      if (response.status === 201) {
+        setMessage('✅ Geofence added successfully!');
+        // Reset form
+        setFormData({
+          name: '',
+          type: 'circle',
+          center: { lat: '', lng: '' },
+          radius: '100',
+          coordinates: []
+        });
+        setPolygonPoints([]);
+        setCurrentLocation(null);
 
-      if (onGeofenceAdded) {
-        onGeofenceAdded();
+        await fetchGeofences();
+
+        if (onGeofenceAdded) {
+          onGeofenceAdded();
+        }
       }
     } catch (err) {
-      setMessage('❌ Error adding geofence: ' + (err.response?.data?.error || err.message));
+      console.error('Submission error:', err);
+      const errorMessage = err.response?.data?.error || 
+                          err.response?.data?.details?.[0] || 
+                          err.message || 
+                          'Unknown error occurred';
+      setMessage('❌ Error adding geofence: ' + errorMessage);
     } finally {
       setLoading(false);
     }

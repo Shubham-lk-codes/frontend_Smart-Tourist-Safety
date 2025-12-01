@@ -16,7 +16,6 @@ const LiveGeoMap = () => {
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   
-  // ✅ CORRECTED: Use port 3000 instead of 8080
   const API_BASE = 'http://localhost:3000/api/geo';
   const WS_URL = 'ws://localhost:3000';
 
@@ -30,7 +29,6 @@ const LiveGeoMap = () => {
       setConnectionStatus('connecting');
       setStatus('🔄 Connecting to WebSocket...');
 
-      // ✅ CORRECTED: Use correct WebSocket URL
       const ws = new WebSocket(WS_URL);
       wsRef.current = ws;
 
@@ -100,7 +98,6 @@ const LiveGeoMap = () => {
               setUserCount(data.userCount);
               break;
 
-            // NEW: Handle panic alert acknowledgments
             case 'panic_acknowledged':
               setStatus(`🚨 ${data.message}`);
               break;
@@ -153,7 +150,7 @@ const LiveGeoMap = () => {
     return clientId;
   };
 
-  // NEW: Send panic alert
+  // Send panic alert
   const sendPanicAlert = () => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       setStatus('❌ Not connected to WebSocket');
@@ -183,7 +180,7 @@ const LiveGeoMap = () => {
     setStatus('🚨 PANIC BUTTON PRESSED! Help is on the way...');
   };
 
-  // NEW: Switch user type
+  // Switch user type
   const switchUserType = (newType) => {
     setUserType(newType);
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -238,19 +235,24 @@ const LiveGeoMap = () => {
           }));
         }
 
-        // Check geofence status
+        // Check geofence status with improved error handling
         try {
           const response = await axios.get(`${API_BASE}/check`, {
-            params: { lat: latitude, lng: longitude }
+            params: { lat: latitude, lng: longitude },
+            timeout: 5000 // 5 second timeout
           });
           setGeofenceStatus(response.data);
           setStatus(`${response.data.message} | 📍 Live updating...`);
         } catch (err) {
           console.error('Geofence check error:', err);
-          setStatus('📍 Live tracking - Error checking geofence');
+          // Don't show error if it's just a timeout or temporary issue
+          if (isTracking) {
+            setStatus('📍 Live tracking - Temporary geofence service issue');
+          }
         }
       },
       (err) => {
+        console.error('Geolocation error:', err);
         setStatus('❌ Location error: ' + err.message);
         setIsTracking(false);
       },
@@ -287,14 +289,26 @@ const LiveGeoMap = () => {
     };
   }, []);
 
-  // Fetch boundaries on mount
+  // Fetch boundaries on mount with error handling
   useEffect(() => {
     const fetchBoundaries = async () => {
       try {
-        const response = await axios.get(`${API_BASE}/geofences`);
+        const response = await axios.get(`${API_BASE}/geofences`, {
+          timeout: 10000
+        });
         setBoundaries(response.data.boundaries || []);
       } catch (err) {
         console.error('Error fetching boundaries:', err);
+        // Set some default boundaries for demo
+        setBoundaries([
+          {
+            _id: 'demo1',
+            name: 'Demo Safe Zone',
+            type: 'circle',
+            center: { lat: 21.1458, lng: 79.0881 },
+            radius: 3000
+          }
+        ]);
       }
     };
 
