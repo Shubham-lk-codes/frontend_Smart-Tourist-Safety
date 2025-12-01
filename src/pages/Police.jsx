@@ -20,17 +20,17 @@ const LeafletMapModal = ({ isOpen, onClose, location, alertId, clientId }) => {
     link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
     link.integrity = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=';
     link.crossOrigin = '';
-    
+
     // Load Leaflet JS
     const script = document.createElement('script');
     script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
     script.integrity = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=';
     script.crossOrigin = '';
-    
+
     script.onload = () => {
       setLeafletLoaded(true);
     };
-    
+
     document.head.appendChild(link);
     document.head.appendChild(script);
 
@@ -47,7 +47,7 @@ const LeafletMapModal = ({ isOpen, onClose, location, alertId, clientId }) => {
     if (!leafletLoaded || !isOpen || !location || !mapRef.current) return;
 
     const L = window.L;
-    
+
     // Clear existing map
     if (mapInstanceRef.current) {
       mapInstanceRef.current.remove();
@@ -57,7 +57,7 @@ const LeafletMapModal = ({ isOpen, onClose, location, alertId, clientId }) => {
     // Initialize map
     const lat = location.latitude || location.lat || 28.6139;
     const lng = location.longitude || location.lng || 77.2090;
-    
+
     mapInstanceRef.current = L.map(mapRef.current).setView([lat, lng], 16);
 
     // Add tile layer (OpenStreetMap)
@@ -76,9 +76,9 @@ const LeafletMapModal = ({ isOpen, onClose, location, alertId, clientId }) => {
       shadowSize: [41, 41]
     });
 
-    markerRef.current = L.marker([lat, lng], { 
+    markerRef.current = L.marker([lat, lng], {
       icon: redIcon,
-      title: `Emergency Location - ${clientId || 'Unknown User'}` 
+      title: `Emergency Location - ${clientId || 'Unknown User'}`
     }).addTo(mapInstanceRef.current);
 
     // Add popup with emergency details
@@ -135,8 +135,8 @@ const LeafletMapModal = ({ isOpen, onClose, location, alertId, clientId }) => {
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         {/* Background overlay */}
-        <div 
-          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" 
+        <div
+          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
           onClick={onClose}
         ></div>
 
@@ -156,7 +156,7 @@ const LeafletMapModal = ({ isOpen, onClose, location, alertId, clientId }) => {
                     ✕
                   </button>
                 </div>
-                
+
                 <div className="mb-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-blue-50 p-4 rounded-lg">
@@ -177,8 +177,8 @@ const LeafletMapModal = ({ isOpen, onClose, location, alertId, clientId }) => {
                 </div>
 
                 {/* Map Container */}
-                <div 
-                  ref={mapRef} 
+                <div
+                  ref={mapRef}
                   className="w-full h-96 rounded-lg border border-gray-300 shadow-inner"
                   style={{ minHeight: '400px' }}
                 >
@@ -257,7 +257,7 @@ const LeafletMapModal = ({ isOpen, onClose, location, alertId, clientId }) => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
             <button
               type="button"
@@ -367,7 +367,7 @@ function Police() {
   });
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [showMapModal, setShowMapModal] = useState(false);
-  
+
   const socketRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const audioContextRef = useRef(null);
@@ -398,19 +398,19 @@ function Police() {
       const oscillator1 = audioContext.createOscillator();
       const oscillator2 = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
-      
+
       oscillator1.connect(gainNode);
       oscillator2.connect(gainNode);
       gainNode.connect(audioContext.destination);
-      
+
       oscillator1.frequency.value = 1000;
       oscillator2.frequency.value = 800;
       oscillator1.type = 'sine';
       oscillator2.type = 'sine';
-      
+
       gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 2);
-      
+
       oscillator1.start(audioContext.currentTime);
       oscillator2.start(audioContext.currentTime);
       oscillator1.stop(audioContext.currentTime + 2);
@@ -450,15 +450,15 @@ function Police() {
     try {
       console.log('🔄 Connecting to WebSocket...');
       setSocketStatus('connecting');
-      
+
       const ws = new WebSocket(`ws://${window.location.hostname}:3000`);
-      
+
       ws.onopen = () => {
         console.log('🔗 Police WebSocket Connected');
         setSocketStatus('connected');
         setReconnectAttempts(0);
         socketRef.current = ws;
-        
+
         ws.send(JSON.stringify({
           type: 'identify_user',
           userType: 'police',
@@ -478,35 +478,35 @@ function Police() {
             case 'panic_alert':
               handleEmergencyAlert(data);
               break;
-              
+
             case 'emergency_alert':
               handleEmergencyAlert(data.alert || data);
               break;
-              
+
             case 'emergency_status_update':
               handleEmergencyUpdate(data);
               break;
-              
+
             case 'user_connected':
               handleUserConnected(data);
               break;
-              
+
             case 'user_disconnected':
               handleUserDisconnected(data);
               break;
-              
+
             case 'health_check':
               handleHealthCheck(data);
               break;
-              
+
             case 'connection_established':
               console.log('✅ Connection established with server');
               break;
-              
+
             case 'location_update':
               handleLocationUpdate(data);
               break;
-              
+
             default:
               console.log('Unknown message type:', data.type);
           }
@@ -519,11 +519,11 @@ function Police() {
         console.log('🔴 Police WebSocket Disconnected:', event.code, event.reason);
         setSocketStatus('disconnected');
         socketRef.current = null;
-        
+
         if (reconnectAttempts < 5) {
           const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
-          console.log(`🔄 Reconnecting in ${delay/1000} seconds... (Attempt ${reconnectAttempts + 1})`);
-          
+          console.log(`🔄 Reconnecting in ${delay / 1000} seconds... (Attempt ${reconnectAttempts + 1})`);
+
           reconnectTimeoutRef.current = setTimeout(() => {
             setReconnectAttempts(prev => prev + 1);
             connectWebSocket();
@@ -565,7 +565,7 @@ function Police() {
       }
       return prev;
     });
-    
+
     playEmergencySound();
     showBrowserNotification(newAlert);
     console.log('🚨 Emergency Alert Received:', newAlert);
@@ -586,7 +586,7 @@ function Police() {
 
   const handleUserConnected = (data) => {
     setActiveConnections(prev => prev + 1);
-    
+
     setConnectedClients(prev => {
       const exists = prev.find(c => c.id === data.clientId);
       if (!exists && data.clientId) {
@@ -603,7 +603,7 @@ function Police() {
 
   const handleUserDisconnected = (data) => {
     setActiveConnections(prev => Math.max(0, prev - 1));
-    setConnectedClients(prev => 
+    setConnectedClients(prev =>
       prev.filter(c => c.id !== data.clientId)
     );
   };
@@ -613,15 +613,15 @@ function Police() {
   };
 
   const handleLocationUpdate = (data) => {
-    setConnectedClients(prev => 
-      prev.map(client => 
-        client.id === data.clientId 
-          ? { 
-              ...client, 
-              location: data.data,
-              lastSeen: new Date().toISOString(),
-              lastUpdate: data.timestamp 
-            }
+    setConnectedClients(prev =>
+      prev.map(client =>
+        client.id === data.clientId
+          ? {
+            ...client,
+            location: data.data,
+            lastSeen: new Date().toISOString(),
+            lastUpdate: data.timestamp
+          }
           : client
       )
     );
@@ -661,10 +661,10 @@ function Police() {
   // Open in OpenStreetMap
   const handleOpenOSM = (location) => {
     if (!location) return;
-    
+
     const lat = location.latitude || location.lat;
     const lng = location.longitude || location.lng;
-    
+
     if (lat && lng) {
       const osmUrl = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}&zoom=17`;
       window.open(osmUrl, '_blank');
@@ -674,10 +674,10 @@ function Police() {
   // Open driving directions
   const handleOpenDirections = (location) => {
     if (!location) return;
-    
+
     const lat = location.latitude || location.lat;
     const lng = location.longitude || location.lng;
-    
+
     if (lat && lng) {
       const directionsUrl = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${lat}%2C${lng}`;
       window.open(directionsUrl, '_blank');
@@ -713,8 +713,8 @@ function Police() {
     if (!alert) return;
 
     setEmergencyAlerts(prev => {
-      const updated = prev.map(alert => 
-        alert.id === alertId 
+      const updated = prev.map(alert =>
+        alert.id === alertId
           ? { ...alert, acknowledged: true, status: 'acknowledged', acknowledgedAt: new Date().toISOString() }
           : alert
       );
@@ -753,8 +753,8 @@ function Police() {
   // Resolve emergency alert
   const resolveAlert = async (alertId) => {
     setEmergencyAlerts(prev => {
-      const updated = prev.map(alert => 
-        alert.id === alertId 
+      const updated = prev.map(alert =>
+        alert.id === alertId
           ? { ...alert, status: 'resolved', resolvedAt: new Date().toISOString() }
           : alert
       );
@@ -850,7 +850,7 @@ function Police() {
               </h1>
               <p className="text-blue-200 mt-1">Real-time Emergency Monitoring & Response System</p>
             </div>
-            
+
             <div className="text-right">
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-blue-700 p-3 rounded-lg">
@@ -910,7 +910,7 @@ function Police() {
                         </button>
                       </div>
                     </div>
-                    
+
                     {/* Location Information */}
                     <div className="mt-3 p-3 bg-gray-50 rounded">
                       <p className="text-sm font-semibold text-gray-700 mb-1">📍 Location:</p>
@@ -1027,26 +1027,26 @@ function Police() {
       <div className="bg-white shadow-sm">
         <div className="container mx-auto px-4">
           <nav className="flex space-x-1 border-b">
-            <a 
-              href="/police/tracker" 
+            <a
+              href="/police/tracker"
               className="px-6 py-4 text-blue-600 border-b-2 border-blue-600 font-semibold hover:bg-blue-50 transition duration-200"
             >
               📍 Geo Tracker
             </a>
-            <a 
-              href="/police/map" 
+            <a
+              href="/police/map"
               className="px-6 py-4 text-gray-600 hover:text-blue-600 hover:bg-gray-50 font-semibold transition duration-200"
             >
               🗺️ Live Emergency Map
             </a>
-            <a 
-              href="/police/lookup" 
+            <a
+              href="/police/lookup"
               className="px-6 py-4 text-gray-600 hover:text-blue-600 hover:bg-gray-50 font-semibold transition duration-200"
             >
               👤 User Lookup
             </a>
-            <a 
-              href="/police/history" 
+            <a
+              href="/police/history"
               className="px-6 py-4 text-gray-600 hover:text-blue-600 hover:bg-gray-50 font-semibold transition duration-200"
             >
               📊 Alert History
@@ -1088,7 +1088,7 @@ function Police() {
             <p className="text-gray-600 text-sm">Real-time location tracking of emergencies and tourists</p>
           </div>
           <div className="p-4">
-            <LiveGeoMap 
+            <LiveGeoMap
               emergencyAlerts={emergencyAlerts}
               connectedClients={connectedClients}
               onEmergencyClick={(alert) => handleOpenMap(alert)}
@@ -1117,7 +1117,7 @@ function Police() {
                       {client.location && (
                         <div className="mt-2">
                           <p className="text-xs text-gray-500">
-                            📍 {client.location.latitude?.toFixed(6) || client.location.lat?.toFixed(6)}, 
+                            📍 {client.location.latitude?.toFixed(6) || client.location.lat?.toFixed(6)},
                             {client.location.longitude?.toFixed(6) || client.location.lng?.toFixed(6)}
                           </p>
                           <button
@@ -1193,13 +1193,12 @@ function Police() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
-                          alert.status === 'active' 
-                            ? 'bg-red-100 text-red-800 animate-pulse' 
+                        <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${alert.status === 'active'
+                            ? 'bg-red-100 text-red-800 animate-pulse'
                             : alert.status === 'acknowledged'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-green-100 text-green-800'
-                        }`}>
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-green-100 text-green-800'
+                          }`}>
                           {alert.status.toUpperCase()}
                         </span>
                       </td>
