@@ -4,6 +4,7 @@ import GeoFenceTracker from '../components/GeoFenceTracker';
 import LiveGeoMap from '../components/LiveGeoMap';
 import SafetyMap from '../components/SafetyMap';
 import GeofenceList from '../components/GeofenceList';
+import UserRegistration from '../components/UserRegistration';
 
 function Tourist() {
   const [panicStatus, setPanicStatus] = useState(false);
@@ -424,6 +425,9 @@ function Tourist() {
         
         <div className="mt-8">
           <GeofenceList />
+        </div>
+        <div>
+          <UserRegistration />
         </div>
       </div>
 
