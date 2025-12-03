@@ -47,6 +47,7 @@ function App() {
               <Route path="/rescue-team/tracker" element={<GeoFenceTracker />} />
               <Route path="/rescue-team/map" element={<LiveGeoMap />} />
               <Route path="/dashboard" element={ <Dashboard />} />
+              <Route path="/bi" element={ <BlockchainInfo/>} />
               
              
            
