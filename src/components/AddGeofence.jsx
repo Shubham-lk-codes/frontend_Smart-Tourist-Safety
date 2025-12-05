@@ -44,7 +44,6 @@ const FitBoundsUpdater = ({ bounds }) => {
 
 // Custom hook for accurate area calculation
 const useGeofenceArea = () => {
-  // More accurate calculation using Haversine formula for polygons
   const calculatePolygonArea = (coordinates) => {
     if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 3) return 0;
 
@@ -110,11 +109,11 @@ const AddGeofence = ({ onGeofenceAdded }) => {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [polygonPoints, setPolygonPoints] = useState([]);
   const [geofences, setGeofences] = useState([]);
-  const [mapCenter, setMapCenter] = useState([20.5937, 78.9629]); // Default India center
+  const [mapCenter, setMapCenter] = useState([30.710170, 76.765594]); // Default coordinates
   const [selectedFence, setSelectedFence] = useState(null);
   const [viewingFence, setViewingFence] = useState(false);
   const [mapBounds, setMapBounds] = useState(null);
-  const [mapZoom, setMapZoom] = useState(13);
+  const [mapZoom, setMapZoom] = useState(15);
   const mapRef = useRef(null);
 
   const { calculatePolygonArea, calculateCircleArea, formatArea } = useGeofenceArea();
@@ -124,9 +123,35 @@ const AddGeofence = ({ onGeofenceAdded }) => {
   // Initialize when component mounts
   useEffect(() => {
     fetchGeofences();
+    // Test location - remove this in production
+    testGeolocation();
   }, []);
 
-  // Fetch all geofences from the server with proper error handling
+  // Function to test if geolocation is working
+  const testGeolocation = () => {
+    if (navigator.geolocation) {
+      console.log('✅ Geolocation is supported');
+      navigator.permissions.query({ name: 'geolocation' })
+        .then(permissionStatus => {
+          console.log('📍 Geolocation permission status:', permissionStatus.state);
+          if (permissionStatus.state === 'granted') {
+            console.log('✅ Permission already granted');
+          } else if (permissionStatus.state === 'prompt') {
+            console.log('ℹ️ Permission will be requested when needed');
+          } else {
+            console.log('❌ Permission denied');
+          }
+        })
+        .catch(err => {
+          console.log('❌ Error checking permission:', err);
+        });
+    } else {
+      console.log('❌ Geolocation not supported');
+      setMessage('❌ Your browser does not support geolocation');
+    }
+  };
+
+  // Fetch all geofences from the server
   const fetchGeofences = async () => {
     try {
       const response = await axios.get(`${API_BASE}/geofences`);
@@ -160,7 +185,6 @@ const AddGeofence = ({ onGeofenceAdded }) => {
         [name]: value,
         coordinates: value === 'polygon' ? [] : undefined
       }));
-      // Clear polygon points when switching types
       if (value === 'circle') {
         setPolygonPoints([]);
       }
@@ -172,20 +196,42 @@ const AddGeofence = ({ onGeofenceAdded }) => {
     }
   };
 
+  // SIMPLE AND RELIABLE getCurrentLocation function
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
-      setMessage('Geolocation not supported by your browser');
+      setMessage('❌ Geolocation is not supported by your browser');
       return;
     }
 
     setLoading(true);
-    setMessage('Getting your current location...');
+    setMessage('📍 Requesting your location...');
+
+    const options = {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    };
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const { latitude, longitude } = position.coords;
-        const newLocation = { lat: latitude, lng: longitude };
+        const { latitude, longitude, accuracy } = position.coords;
         
+        console.log('✅ Location obtained:', {
+          lat: latitude,
+          lng: longitude,
+          accuracy: accuracy
+        });
+        
+        const location = {
+          lat: latitude,
+          lng: longitude,
+          accuracy: accuracy,
+          timestamp: position.timestamp
+        };
+        
+        setCurrentLocation(location);
+        
+        // Update form with current location
         setFormData(prev => ({
           ...prev,
           center: {
@@ -193,21 +239,99 @@ const AddGeofence = ({ onGeofenceAdded }) => {
             lng: longitude.toFixed(6)
           }
         }));
-        setCurrentLocation(newLocation);
+        
+        // Update map to show current location
         setMapCenter([latitude, longitude]);
-        setMapZoom(15);
-        setMessage('✅ Current location set successfully!');
+        setMapZoom(16); // Zoom in more for current location
+        
+        setMessage(`✅ Your current location has been set!`);
         setLoading(false);
+        
+        // Log for debugging
+        console.log('📍 Current location set to:', {
+          latitude: latitude.toFixed(6),
+          longitude: longitude.toFixed(6),
+          accuracy: `${accuracy.toFixed(0)} meters`
+        });
       },
-      (err) => {
-        setMessage('❌ Error getting location: ' + err.message);
+      (error) => {
         setLoading(false);
+        let errorMessage = 'Failed to get location: ';
+        
+        switch(error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage += 'Location permission denied. Please allow location access in your browser settings.';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage += 'Location information is unavailable. Please check your GPS or network connection.';
+            break;
+          case error.TIMEOUT:
+            errorMessage += 'Location request timed out. Please try again.';
+            break;
+          default:
+            errorMessage += 'Unknown error occurred.';
+            break;
+        }
+        
+        setMessage(`❌ ${errorMessage}`);
+        console.error('Geolocation error:', error);
+        
+        // Fallback: Try to get location with less accurate settings
+        setTimeout(() => {
+          if (!currentLocation) {
+            getLocationWithFallback();
+          }
+        }, 1000);
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000
-      }
+      options
+    );
+  };
+
+  // Fallback method for getting location
+  const getLocationWithFallback = () => {
+    if (!navigator.geolocation) return;
+    
+    const fallbackOptions = {
+      enableHighAccuracy: false,
+      timeout: 5000,
+      maximumAge: 300000 // 5 minutes
+    };
+    
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const location = {
+          lat: latitude,
+          lng: longitude,
+          accuracy: position.coords.accuracy || 10000, // Default 10km accuracy
+          timestamp: position.timestamp
+        };
+        
+        setCurrentLocation(location);
+        setFormData(prev => ({
+          ...prev,
+          center: {
+            lat: latitude.toFixed(6),
+            lng: longitude.toFixed(6)
+          }
+        }));
+        setMapCenter([latitude, longitude]);
+        setMapZoom(14);
+        
+        setMessage('✅ Location obtained with fallback method');
+      },
+      (error) => {
+        console.error('Fallback geolocation also failed:', error);
+        // Use default coordinates as last resort
+        setMessage('⚠️ Using default coordinates. Please enable location services for accurate results.');
+        setCurrentLocation({
+          lat: 30.710170,
+          lng: 76.765594,
+          accuracy: 10000,
+          timestamp: Date.now()
+        });
+      },
+      fallbackOptions
     );
   };
 
@@ -244,7 +368,6 @@ const AddGeofence = ({ onGeofenceAdded }) => {
     setMessage('');
 
     try {
-      // Enhanced validation
       if (!formData.name.trim()) {
         throw new Error('Zone name is required');
       }
@@ -272,13 +395,11 @@ const AddGeofence = ({ onGeofenceAdded }) => {
         }
       }
 
-      // Prepare data for API
       const geofenceData = {
         name: formData.name.trim(),
         type: formData.type,
       };
 
-      // Add circle-specific data
       if (formData.type === 'circle') {
         geofenceData.center = {
           lat: parseFloat(formData.center.lat),
@@ -287,7 +408,6 @@ const AddGeofence = ({ onGeofenceAdded }) => {
         geofenceData.radius = parseFloat(formData.radius);
       }
 
-      // Add polygon-specific data
       if (formData.type === 'polygon') {
         geofenceData.coordinates = polygonPoints;
       }
@@ -303,7 +423,6 @@ const AddGeofence = ({ onGeofenceAdded }) => {
 
       if (response.status === 201) {
         setMessage('✅ Geofence added successfully!');
-        // Reset form
         setFormData({
           name: '',
           type: 'circle',
@@ -312,7 +431,6 @@ const AddGeofence = ({ onGeofenceAdded }) => {
           coordinates: []
         });
         setPolygonPoints([]);
-        setCurrentLocation(null);
 
         await fetchGeofences();
 
@@ -337,10 +455,8 @@ const AddGeofence = ({ onGeofenceAdded }) => {
     setViewingFence(true);
     
     if (fence.type === 'circle') {
-      // For circle, center on it and set appropriate zoom based on radius
       setMapCenter([fence.center.lat, fence.center.lng]);
       
-      // Calculate zoom level based on radius
       let zoomLevel = 15;
       if (fence.radius > 5000) zoomLevel = 12;
       else if (fence.radius > 2000) zoomLevel = 13;
@@ -350,10 +466,9 @@ const AddGeofence = ({ onGeofenceAdded }) => {
       
       setMapZoom(zoomLevel);
       
-      // Calculate bounds for the circle
       const lat = fence.center.lat;
       const lng = fence.center.lng;
-      const radiusInDegrees = fence.radius / 111320; // Approximate conversion
+      const radiusInDegrees = fence.radius / 111320;
       
       const bounds = [
         [lat - radiusInDegrees, lng - radiusInDegrees],
@@ -362,7 +477,6 @@ const AddGeofence = ({ onGeofenceAdded }) => {
       setMapBounds(bounds);
       
     } else if (fence.type === 'polygon' && fence.coordinates && fence.coordinates.length > 0) {
-      // For polygon, calculate bounds from all points
       const lats = fence.coordinates.map(coord => coord.lat);
       const lngs = fence.coordinates.map(coord => coord.lng);
       
@@ -371,19 +485,16 @@ const AddGeofence = ({ onGeofenceAdded }) => {
       const minLng = Math.min(...lngs);
       const maxLng = Math.max(...lngs);
       
-      // Calculate center
       const centerLat = (minLat + maxLat) / 2;
       const centerLng = (minLng + maxLng) / 2;
       setMapCenter([centerLat, centerLng]);
       
-      // Set bounds
       const bounds = [
         [minLat, minLng],
         [maxLat, maxLng]
       ];
       setMapBounds(bounds);
       
-      // Calculate zoom based on polygon size
       const latDiff = maxLat - minLat;
       const lngDiff = maxLng - minLng;
       const maxDiff = Math.max(latDiff, lngDiff);
@@ -405,14 +516,32 @@ const AddGeofence = ({ onGeofenceAdded }) => {
   const closeFenceView = () => {
     setSelectedFence(null);
     setViewingFence(false);
-    setMapCenter([20.5937, 78.9629]);
-    setMapZoom(13);
+    if (currentLocation) {
+      setMapCenter([currentLocation.lat, currentLocation.lng]);
+      setMapZoom(15);
+    } else {
+      setMapCenter([30.710170, 76.765594]);
+      setMapZoom(15);
+    }
     setMapBounds(null);
     setMessage('');
   };
 
   const handleMapCreated = (map) => {
     mapRef.current = map;
+  };
+
+  const handleManualLocationUpdate = () => {
+    const lat = parseFloat(formData.center.lat);
+    const lng = parseFloat(formData.center.lng);
+    
+    if (!isNaN(lat) && !isNaN(lng)) {
+      setMapCenter([lat, lng]);
+      setMapZoom(15);
+      setMessage('📍 Manual location updated on map');
+    } else {
+      setMessage('❌ Please enter valid coordinates');
+    }
   };
 
   // Safe geofences array for rendering
@@ -506,7 +635,7 @@ const AddGeofence = ({ onGeofenceAdded }) => {
 
             {/* Geofence Name */}
             <div>
-              <label className="block text-lg font-semibold text-black text-gray-700 mb-3">
+              <label className="block text-lg font-semibold text-gray-700 mb-3">
                 Zone Name *
               </label>
               <input
@@ -515,7 +644,7 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                 value={formData.name}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-4 border-2 text-black border-gray-300 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white/80 backdrop-blur-sm text-lg transition-all duration-200"
+                className="w-full px-4 py-4 border-2 border-gray-300 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white/80 backdrop-blur-sm text-lg transition-all duration-200"
                 placeholder="e.g., Taj Mahal Safe Zone, Beach Area"
               />
             </div>
@@ -526,58 +655,84 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                 {formData.type === 'circle' ? 'Center Coordinates *' : 'Polygon Points *'}
               </label>
 
-              <button
-                type="button"
-                onClick={getCurrentLocation}
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:from-green-300 disabled:to-emerald-400 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-200 disabled:transform-none transform hover:scale-105 shadow-lg flex items-center justify-center text-lg"
-              >
-                {loading ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-3 h-6 w-6 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Getting Location...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    Use My Current Location
-                  </>
-                )}
-              </button>
+              <div className="space-y-4">
+                <button
+                  type="button"
+                  onClick={getCurrentLocation}
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:from-green-300 disabled:to-emerald-400 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-200 disabled:transform-none transform hover:scale-105 shadow-lg flex items-center justify-center text-lg"
+                >
+                  {loading ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-3 h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Getting Location...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      Use My Current Location
+                    </>
+                  )}
+                </button>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-2">Latitude</label>
-                  <input
-                    type="number"
-                    step="any"
-                    name="lat"
-                    value={formData.center.lat}
-                    onChange={handleChange}
-                    required={formData.type === 'circle'}
-                    className="w-full px-4 py-3 border-2 text-black border-gray-300 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
-                    placeholder="28.6139"
-                  />
-                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-2">Latitude</label>
+                    <div className="flex">
+                      <input
+                        type="number"
+                        step="any"
+                        name="lat"
+                        value={formData.center.lat}
+                        onChange={handleChange}
+                        required={formData.type === 'circle'}
+                        className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-l-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
+                        placeholder="30.710170"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleManualLocationUpdate}
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-r-2xl border-2 border-blue-500 transition-colors"
+                        title="Update map with these coordinates"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-2">Longitude</label>
-                  <input
-                    type="number"
-                    step="any"
-                    name="lng"
-                    value={formData.center.lng}
-                    onChange={handleChange}
-                    required={formData.type === 'circle'}
-                    className="w-full px-4 py-3 text-black border-2 border-gray-300 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
-                    placeholder="77.2090"
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-2">Longitude</label>
+                    <div className="flex">
+                      <input
+                        type="number"
+                        step="any"
+                        name="lng"
+                        value={formData.center.lng}
+                        onChange={handleChange}
+                        required={formData.type === 'circle'}
+                        className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-l-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
+                        placeholder="76.765594"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleManualLocationUpdate}
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-r-2xl border-2 border-blue-500 transition-colors"
+                        title="Update map with these coordinates"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -589,14 +744,14 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                       type="button"
                       onClick={addPolygonPoint}
                       disabled={!formData.center.lat || !formData.center.lng}
-                      className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 disabled:from-blue-300 disabled:to-cyan-400 text-black font-semibold py-3 px-4 rounded-2xl transition-all duration-200 disabled:transform-none transform hover:scale-105 shadow-lg"
+                      className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 disabled:from-blue-300 disabled:to-cyan-400 text-white font-semibold py-3 px-4 rounded-2xl transition-all duration-200 disabled:transform-none transform hover:scale-105 shadow-lg"
                     >
                       Add Point
                     </button>
                     <button
                       type="button"
                       onClick={clearPolygon}
-                      className="flex-1 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-black font-semibold py-3 px-4 rounded-2xl transition-all duration-200 transform hover:scale-105 shadow-lg"
+                      className="flex-1 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white font-semibold py-3 px-4 rounded-2xl transition-all duration-200 transform hover:scale-105 shadow-lg"
                     >
                       Clear All
                     </button>
@@ -645,7 +800,7 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                   required
                   min="1"
                   step="1"
-                  className="w-full px-4 py-4 border-2 text-black border-gray-300 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white/80 backdrop-blur-sm text-lg transition-all duration-200"
+                  className="w-full px-4 py-4 border-2 border-gray-300 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white/80 backdrop-blur-sm text-lg transition-all duration-200"
                   placeholder="Enter radius in meters"
                 />
                 <p className="text-sm text-gray-500 mt-2 ml-2">
@@ -667,7 +822,7 @@ const AddGeofence = ({ onGeofenceAdded }) => {
             >
               {loading ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-3 h-6 w-6 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin -ml-1 mr-3 h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
@@ -690,6 +845,8 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                 ? 'bg-green-100/80 border-green-300 text-green-800'
                 : message.includes('🔍')
                 ? 'bg-blue-100/80 border-blue-300 text-blue-800'
+                : message.includes('📍')
+                ? 'bg-blue-100/80 border-blue-300 text-blue-800'
                 : 'bg-red-100/80 border-red-300 text-red-800'
               }`}>
               <div className="flex items-center">
@@ -700,6 +857,11 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                 ) : message.includes('🔍') ? (
                   <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                  </svg>
+                ) : message.includes('📍') ? (
+                  <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 ) : (
                   <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
@@ -714,12 +876,39 @@ const AddGeofence = ({ onGeofenceAdded }) => {
           {/* Current Location Preview */}
           {currentLocation && (
             <div className="mt-8 bg-blue-50/80 backdrop-blur-sm p-4 rounded-2xl border border-blue-200/50">
-              <p className="text-sm font-semibold text-blue-800">📍 Current Location Set:</p>
+              <p className="text-sm font-semibold text-blue-800">📍 Your Current Location:</p>
               <p className="font-mono text-sm text-blue-600 mt-1">
                 Lat: {currentLocation.lat.toFixed(6)}, Lng: {currentLocation.lng.toFixed(6)}
               </p>
+              {currentLocation.accuracy && (
+                <p className="text-xs text-blue-500 mt-1">
+                  Accuracy: ±{currentLocation.accuracy.toFixed(0)} meters
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setMapCenter([currentLocation.lat, currentLocation.lng]);
+                  setMapZoom(16);
+                  setMessage('📍 Centered map on your current location');
+                }}
+                className="mt-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-sm transition-colors"
+              >
+                Center Map Here
+              </button>
             </div>
           )}
+
+          {/* Debug Info - Remove in production */}
+          <div className="mt-4 p-3 bg-gray-100/80 rounded-xl text-xs text-gray-600">
+            <p className="font-semibold">ℹ️ Location Tips:</p>
+            <ul className="mt-1 space-y-1">
+              <li>• Make sure location services are enabled on your device</li>
+              <li>• Allow location permission when browser asks</li>
+              <li>• Try refreshing the page if location doesn't work</li>
+              <li>• Use manual coordinates as fallback</li>
+            </ul>
+          </div>
         </div>
 
         {/* Map Section */}
@@ -780,7 +969,7 @@ const AddGeofence = ({ onGeofenceAdded }) => {
               
               {/* Update map when current location changes */}
               {currentLocation && (
-                <MapUpdater center={currentLocation} zoom={15} />
+                <MapUpdater center={currentLocation} zoom={16} />
               )}
               
               {/* Update map when viewing fence */}
@@ -808,9 +997,28 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                 <Marker position={[currentLocation.lat, currentLocation.lng]}>
                   <Popup>
                     <div className="text-center">
-                      <strong>Your Current Location</strong><br />
+                      <strong>📍 Your Current Location</strong><br />
                       Lat: {currentLocation.lat.toFixed(6)}<br />
-                      Lng: {currentLocation.lng.toFixed(6)}
+                      Lng: {currentLocation.lng.toFixed(6)}<br />
+                      {currentLocation.accuracy && (
+                        <>
+                          Accuracy: ±{currentLocation.accuracy.toFixed(0)} meters<br />
+                        </>
+                      )}
+                      {currentLocation.timestamp && (
+                        <>
+                          Time: {new Date(currentLocation.timestamp).toLocaleTimeString()}<br />
+                        </>
+                      )}
+                      <button
+                        onClick={() => {
+                          setMapCenter([currentLocation.lat, currentLocation.lng]);
+                          setMapZoom(16);
+                        }}
+                        className="mt-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-sm transition-colors"
+                      >
+                        Center Here
+                      </button>
                     </div>
                   </Popup>
                 </Marker>
@@ -833,7 +1041,6 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                       }}
                       eventHandlers={{
                         click: () => {
-                          // When clicking on the circle on the map, zoom to it
                           viewFenceArea(fence);
                         }
                       }}
@@ -867,7 +1074,6 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                   const polygonCoords = fence.coordinates.map(coord => [coord.lat, coord.lng]);
                   const area = calculatePolygonArea(fence.coordinates);
                   
-                  // Calculate center for tooltip
                   const centerLat = fence.coordinates.reduce((sum, coord) => sum + coord.lat, 0) / fence.coordinates.length;
                   const centerLng = fence.coordinates.reduce((sum, coord) => sum + coord.lng, 0) / fence.coordinates.length;
                   
@@ -883,7 +1089,6 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                       }}
                       eventHandlers={{
                         click: () => {
-                          // When clicking on the polygon on the map, zoom to it
                           viewFenceArea(fence);
                         }
                       }}
