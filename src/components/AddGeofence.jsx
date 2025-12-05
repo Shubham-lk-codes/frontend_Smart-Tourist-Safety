@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { MapContainer, TileLayer, Marker, Popup, Circle, Polygon, useMap, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
@@ -13,14 +13,31 @@ L.Icon.Default.mergeOptions({
 });
 
 // Component to update map view when current location changes
-const MapUpdater = ({ center }) => {
+const MapUpdater = ({ center, zoom }) => {
   const map = useMap();
   
   useEffect(() => {
     if (center && center.lat && center.lng) {
-      map.setView([center.lat, center.lng], 15);
+      map.setView([center.lat, center.lng], zoom || 15);
     }
-  }, [center, map]);
+  }, [center, zoom, map]);
+
+  return null;
+};
+
+// Component to fit map to bounds
+const FitBoundsUpdater = ({ bounds }) => {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (bounds && bounds.length > 0) {
+      try {
+        map.fitBounds(bounds, { padding: [50, 50] });
+      } catch (error) {
+        console.error('Error fitting bounds:', error);
+      }
+    }
+  }, [bounds, map]);
 
   return null;
 };
@@ -94,6 +111,11 @@ const AddGeofence = ({ onGeofenceAdded }) => {
   const [polygonPoints, setPolygonPoints] = useState([]);
   const [geofences, setGeofences] = useState([]);
   const [mapCenter, setMapCenter] = useState([20.5937, 78.9629]); // Default India center
+  const [selectedFence, setSelectedFence] = useState(null);
+  const [viewingFence, setViewingFence] = useState(false);
+  const [mapBounds, setMapBounds] = useState(null);
+  const [mapZoom, setMapZoom] = useState(13);
+  const mapRef = useRef(null);
 
   const { calculatePolygonArea, calculateCircleArea, formatArea } = useGeofenceArea();
 
@@ -173,6 +195,7 @@ const AddGeofence = ({ onGeofenceAdded }) => {
         }));
         setCurrentLocation(newLocation);
         setMapCenter([latitude, longitude]);
+        setMapZoom(15);
         setMessage('✅ Current location set successfully!');
         setLoading(false);
       },
@@ -307,6 +330,89 @@ const AddGeofence = ({ onGeofenceAdded }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const viewFenceArea = (fence) => {
+    setSelectedFence(fence);
+    setViewingFence(true);
+    
+    if (fence.type === 'circle') {
+      // For circle, center on it and set appropriate zoom based on radius
+      setMapCenter([fence.center.lat, fence.center.lng]);
+      
+      // Calculate zoom level based on radius
+      let zoomLevel = 15;
+      if (fence.radius > 5000) zoomLevel = 12;
+      else if (fence.radius > 2000) zoomLevel = 13;
+      else if (fence.radius > 500) zoomLevel = 14;
+      else if (fence.radius > 100) zoomLevel = 15;
+      else zoomLevel = 16;
+      
+      setMapZoom(zoomLevel);
+      
+      // Calculate bounds for the circle
+      const lat = fence.center.lat;
+      const lng = fence.center.lng;
+      const radiusInDegrees = fence.radius / 111320; // Approximate conversion
+      
+      const bounds = [
+        [lat - radiusInDegrees, lng - radiusInDegrees],
+        [lat + radiusInDegrees, lng + radiusInDegrees]
+      ];
+      setMapBounds(bounds);
+      
+    } else if (fence.type === 'polygon' && fence.coordinates && fence.coordinates.length > 0) {
+      // For polygon, calculate bounds from all points
+      const lats = fence.coordinates.map(coord => coord.lat);
+      const lngs = fence.coordinates.map(coord => coord.lng);
+      
+      const minLat = Math.min(...lats);
+      const maxLat = Math.max(...lats);
+      const minLng = Math.min(...lngs);
+      const maxLng = Math.max(...lngs);
+      
+      // Calculate center
+      const centerLat = (minLat + maxLat) / 2;
+      const centerLng = (minLng + maxLng) / 2;
+      setMapCenter([centerLat, centerLng]);
+      
+      // Set bounds
+      const bounds = [
+        [minLat, minLng],
+        [maxLat, maxLng]
+      ];
+      setMapBounds(bounds);
+      
+      // Calculate zoom based on polygon size
+      const latDiff = maxLat - minLat;
+      const lngDiff = maxLng - minLng;
+      const maxDiff = Math.max(latDiff, lngDiff);
+      
+      let zoomLevel = 15;
+      if (maxDiff > 1) zoomLevel = 10;
+      else if (maxDiff > 0.5) zoomLevel = 11;
+      else if (maxDiff > 0.2) zoomLevel = 12;
+      else if (maxDiff > 0.1) zoomLevel = 13;
+      else if (maxDiff > 0.05) zoomLevel = 14;
+      else zoomLevel = 15;
+      
+      setMapZoom(zoomLevel);
+    }
+    
+    setMessage(`🔍 Viewing "${fence.name}" on map`);
+  };
+
+  const closeFenceView = () => {
+    setSelectedFence(null);
+    setViewingFence(false);
+    setMapCenter([20.5937, 78.9629]);
+    setMapZoom(13);
+    setMapBounds(null);
+    setMessage('');
+  };
+
+  const handleMapCreated = (map) => {
+    mapRef.current = map;
   };
 
   // Safe geofences array for rendering
@@ -582,12 +688,18 @@ const AddGeofence = ({ onGeofenceAdded }) => {
           {message && (
             <div className={`mt-8 p-4 rounded-2xl backdrop-blur-sm border ${message.includes('✅')
                 ? 'bg-green-100/80 border-green-300 text-green-800'
+                : message.includes('🔍')
+                ? 'bg-blue-100/80 border-blue-300 text-blue-800'
                 : 'bg-red-100/80 border-red-300 text-red-800'
               }`}>
               <div className="flex items-center">
                 {message.includes('✅') ? (
                   <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                ) : message.includes('🔍') ? (
+                  <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
                   </svg>
                 ) : (
                   <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
@@ -617,12 +729,49 @@ const AddGeofence = ({ onGeofenceAdded }) => {
             <p className="text-gray-600">View all created safety zones and their coverage areas</p>
           </div>
 
+          {/* View Fence Area Button */}
+          {safeGeofences.length > 0 && (
+            <div className="mb-4">
+              <button
+                onClick={() => {
+                  if (viewingFence) {
+                    closeFenceView();
+                  } else if (safeGeofences.length > 0) {
+                    viewFenceArea(safeGeofences[0]);
+                  }
+                }}
+                className={`w-full ${viewingFence 
+                  ? 'bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700' 
+                  : 'bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700'
+                } text-white font-semibold py-3 px-4 rounded-2xl transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center justify-center`}
+              >
+                {viewingFence ? (
+                  <>
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Close Fence View
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    View Fence Area on Map
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
           {/* Real Map Container */}
           <div className="w-full h-96 rounded-2xl border-2 border-gray-300/50 shadow-inner overflow-hidden mb-6">
             <MapContainer 
               center={mapCenter} 
-              zoom={13} 
+              zoom={mapZoom} 
               style={{ height: '100%', width: '100%' }}
+              whenCreated={handleMapCreated}
             >
               <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -631,7 +780,27 @@ const AddGeofence = ({ onGeofenceAdded }) => {
               
               {/* Update map when current location changes */}
               {currentLocation && (
-                <MapUpdater center={currentLocation} />
+                <MapUpdater center={currentLocation} zoom={15} />
+              )}
+              
+              {/* Update map when viewing fence */}
+              {viewingFence && selectedFence && (
+                <MapUpdater 
+                  center={{
+                    lat: selectedFence.type === 'circle' 
+                      ? selectedFence.center.lat 
+                      : selectedFence.coordinates.reduce((sum, coord) => sum + coord.lat, 0) / selectedFence.coordinates.length,
+                    lng: selectedFence.type === 'circle' 
+                      ? selectedFence.center.lng 
+                      : selectedFence.coordinates.reduce((sum, coord) => sum + coord.lng, 0) / selectedFence.coordinates.length
+                  }} 
+                  zoom={mapZoom} 
+                />
+              )}
+              
+              {/* Fit bounds for selected fence */}
+              {viewingFence && mapBounds && (
+                <FitBoundsUpdater bounds={mapBounds} />
               )}
               
               {/* Show current location marker */}
@@ -657,10 +826,16 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                       center={[fence.center.lat, fence.center.lng]}
                       radius={fence.radius}
                       pathOptions={{
-                        color: 'blue',
-                        fillColor: 'blue',
-                        fillOpacity: 0.1,
-                        weight: 2
+                        color: viewingFence && selectedFence?._id === fence._id ? 'red' : 'blue',
+                        fillColor: viewingFence && selectedFence?._id === fence._id ? 'red' : 'blue',
+                        fillOpacity: viewingFence && selectedFence?._id === fence._id ? 0.3 : 0.1,
+                        weight: viewingFence && selectedFence?._id === fence._id ? 4 : 2
+                      }}
+                      eventHandlers={{
+                        click: () => {
+                          // When clicking on the circle on the map, zoom to it
+                          viewFenceArea(fence);
+                        }
                       }}
                     >
                       <Tooltip permanent direction="center" className="custom-tooltip">
@@ -676,6 +851,14 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                           Radius: {fence.radius}m<br />
                           Area: {formatArea(area)}<br />
                           Center: {fence.center.lat.toFixed(6)}, {fence.center.lng.toFixed(6)}
+                          <div className="mt-2">
+                            <button
+                              onClick={() => viewFenceArea(fence)}
+                              className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-sm transition-colors"
+                            >
+                              {viewingFence && selectedFence?._id === fence._id ? 'Close View' : 'View This Fence'}
+                            </button>
+                          </div>
                         </div>
                       </Popup>
                     </Circle>
@@ -693,10 +876,16 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                       key={fence._id || fence.id}
                       positions={polygonCoords}
                       pathOptions={{
-                        color: 'purple',
-                        fillColor: 'purple',
-                        fillOpacity: 0.1,
-                        weight: 2
+                        color: viewingFence && selectedFence?._id === fence._id ? 'red' : 'purple',
+                        fillColor: viewingFence && selectedFence?._id === fence._id ? 'red' : 'purple',
+                        fillOpacity: viewingFence && selectedFence?._id === fence._id ? 0.3 : 0.1,
+                        weight: viewingFence && selectedFence?._id === fence._id ? 4 : 2
+                      }}
+                      eventHandlers={{
+                        click: () => {
+                          // When clicking on the polygon on the map, zoom to it
+                          viewFenceArea(fence);
+                        }
                       }}
                     >
                       <Tooltip permanent direction="center" className="custom-tooltip">
@@ -711,9 +900,14 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                           Type: Polygonal Zone<br />
                           Points: {fence.coordinates.length}<br />
                           Area: {formatArea(area)}<br />
-                          Coordinates: {fence.coordinates.map(coord => 
-                            `(${coord.lat.toFixed(4)}, ${coord.lng.toFixed(4)})`
-                          ).join(', ')}
+                          <div className="mt-2">
+                            <button
+                              onClick={() => viewFenceArea(fence)}
+                              className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-sm transition-colors"
+                            >
+                              {viewingFence && selectedFence?._id === fence._id ? 'Close View' : 'View This Fence'}
+                            </button>
+                          </div>
                         </div>
                       </Popup>
                     </Polygon>
@@ -724,12 +918,12 @@ const AddGeofence = ({ onGeofenceAdded }) => {
             </MapContainer>
           </div>
 
-          {/* Geofences List with Area Summary */}
+          {/* Restricted Zones List with Area Summary */}
           <div className="bg-white/60 backdrop-blur-sm rounded-2xl border-2 border-gray-200/50 p-6">
             <div className="flex justify-between items-center mb-4">
-              <h4 className="text-xl font-semibold text-gray-800">Created Safety Zones</h4>
+              <h4 className="text-xl font-semibold text-gray-800">Restricted Zones</h4>
               {safeGeofences.length > 0 && (
-                <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">
+                <div className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-semibold">
                   Total: {safeGeofences.length} zone{safeGeofences.length !== 1 ? 's' : ''}
                 </div>
               )}
@@ -742,7 +936,7 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                   </svg>
                 </div>
-                <p className="text-gray-500">No geofences created yet. Create your first safety zone above.</p>
+                <p className="text-gray-500">No restricted zones created yet. Create your first safety zone above.</p>
               </div>
             ) : (
               <div className="space-y-4 max-h-64 overflow-y-auto">
@@ -757,34 +951,48 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                         <div>
                           <h5 className="font-semibold text-gray-800">{fence.name}</h5>
                           <div className="flex items-center mt-1">
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${fence.type === 'circle' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${fence.type === 'circle' ? 'bg-red-100 text-red-800' : 'bg-purple-100 text-purple-800'}`}>
                               {fence.type === 'circle' ? '⭕ Circular' : '🔷 Polygonal'}
                             </span>
-                            <span className="ml-2 text-sm font-semibold text-green-600">
+                            <span className="ml-2 text-sm font-semibold text-red-600">
                               Area: {formatArea(area)}
                             </span>
                           </div>
                         </div>
-                        <button 
-                          className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition-colors"
-                          onClick={async () => {
-                            try {
-                              if (!fence._id && !fence.id) {
-                                throw new Error('Geofence ID is missing');
+                        <div className="flex space-x-2">
+                          <button 
+                            onClick={() => viewFenceArea(fence)}
+                            className={`${viewingFence && selectedFence?._id === fence._id 
+                              ? 'bg-red-500 hover:bg-red-600' 
+                              : 'bg-blue-500 hover:bg-blue-600'
+                            } text-white px-3 py-1 rounded-lg text-sm transition-colors`}
+                          >
+                            {viewingFence && selectedFence?._id === fence._id ? 'Close View' : 'View Fence'}
+                          </button>
+                          <button 
+                            className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition-colors"
+                            onClick={async () => {
+                              try {
+                                if (!fence._id && !fence.id) {
+                                  throw new Error('Geofence ID is missing');
+                                }
+                                
+                                await axios.delete(`${API_BASE}/geofences/${fence._id || fence.id}`);
+                                setMessage('✅ Restricted zone deleted successfully!');
+                                await fetchGeofences();
+                                if (selectedFence?._id === fence._id) {
+                                  closeFenceView();
+                                }
+                              } catch (err) {
+                                setMessage('❌ Error deleting restricted zone: ' + (err.response?.data?.error || err.message));
                               }
-                              
-                              await axios.delete(`${API_BASE}/geofences/${fence._id || fence.id}`);
-                              setMessage('✅ Geofence deleted successfully!');
-                              await fetchGeofences();
-                            } catch (err) {
-                              setMessage('❌ Error deleting geofence: ' + (err.response?.data?.error || err.message));
-                            }
-                          }}
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
+                            }}
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
                       {fence.type === 'circle' ? (
                         <p className="text-sm text-gray-600 mt-2">
