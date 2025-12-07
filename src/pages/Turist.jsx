@@ -1,3 +1,6 @@
+
+
+// src/components/Tourist.jsx (Updated)
 import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import GeoFenceTracker from '../components/GeoFenceTracker';
@@ -5,6 +8,7 @@ import LiveGeoMap from '../components/LiveGeoMap';
 import SafetyMap from '../components/SafetyMap';
 import GeofenceList from '../components/GeofenceList';
 import UserRegistration from '../components/UserRegistration';
+import MLTracker from '../components/MLTracker'; // Import ML Tracker
 
 function Tourist() {
   const [panicStatus, setPanicStatus] = useState(false);
@@ -13,10 +17,22 @@ function Tourist() {
   const [emergencySent, setEmergencySent] = useState(false);
   const [emergencyDetails, setEmergencyDetails] = useState(null);
   const [socketStatus, setSocketStatus] = useState('disconnected');
+  const [activeTab, setActiveTab] = useState('tracker'); // Add active tab state
   const socketRef = useRef(null);
   const navigate = useNavigate();
 
-  // WebSocket connection setup
+  // Generate tourist ID if not exists
+  const [touristId, setTouristId] = useState(() => {
+    // Try to get from localStorage or generate new
+    const savedId = localStorage.getItem('tourist_id');
+    if (savedId) return savedId;
+    
+    const newId = `tourist_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem('tourist_id', newId);
+    return newId;
+  });
+
+  // WebSocket connection setup (unchanged)
   useEffect(() => {
     const connectWebSocket = () => {
       try {
@@ -31,7 +47,8 @@ function Tourist() {
           // Identify as tourist user
           ws.send(JSON.stringify({
             type: 'identify_user',
-            userType: 'tourist'
+            userType: 'tourist',
+            touristId: touristId // Send tourist ID
           }));
         };
 
@@ -52,6 +69,13 @@ function Tourist() {
                 
               case 'emergency_acknowledged_by_authority':
                 alert('✅ Police have acknowledged your emergency and are on the way!');
+                break;
+
+              case 'ml_alert': // Handle ML alerts from backend
+                console.log('🤖 Received ML Alert:', data);
+                if (data.alert && data.alert.type === 'ml_anomaly') {
+                  alert(`🚨 ML ALERT: ${data.alert.data?.message || 'Anomaly detected!'}`);
+                }
                 break;
                 
               case 'connection_established':
@@ -101,7 +125,7 @@ function Tourist() {
         socketRef.current.close();
       }
     };
-  }, []);
+  }, [touristId]);
 
   // Get current location with better error handling
   const getCurrentLocation = () => {
@@ -146,7 +170,7 @@ function Tourist() {
     });
   };
 
-  // Panic Button Handler - Updated with proper backend integration
+  // Panic Button Handler - Updated with ML integration
   const handlePanicButton = async () => {
     if (panicStatus) {
       alert('Emergency already sent. Help is on the way!');
@@ -160,9 +184,8 @@ function Tourist() {
       // Get current location
       const currentLocation = await getCurrentLocation();
       
-      const userId = `tourist_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const emergencyData = {
-        userId: userId,
+        userId: touristId, // Use the stored tourist ID
         location: currentLocation,
         timestamp: new Date().toISOString(),
         emergencyType: 'general',
@@ -172,7 +195,7 @@ function Tourist() {
       // Store emergency details for display
       setEmergencyDetails({
         id: `emergency_${Date.now()}`,
-        userId: userId,
+        userId: touristId,
         location: currentLocation,
         timestamp: new Date().toISOString(),
         status: 'active',
@@ -184,7 +207,7 @@ function Tourist() {
         const panicData = {
           type: 'panic_alert',
           data: {
-            userId: userId,
+            userId: touristId,
             location: currentLocation,
             timestamp: new Date().toISOString(),
             emergencyType: 'general',
@@ -287,6 +310,9 @@ function Tourist() {
                 <span className="ml-2 text-xs text-gray-600">
                   📍 {location ? `Location: ${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}` : 'Getting location...'}
                 </span>
+                <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                  ID: {touristId.substring(0, 10)}...
+                </span>
               </div>
             </div>
             
@@ -325,29 +351,35 @@ function Tourist() {
             </div>
           </div>
 
-          {/* Navigation */}
-          <nav className="mt-4">
-            <div className="flex flex-wrap gap-2">
-              <button 
-                onClick={() => navigate('/tourist/tracker')}
-                className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition duration-200 flex items-center"
+          {/* Navigation Tabs */}
+          <div className="mt-4">
+            <div className="flex flex-wrap gap-1 border-b">
+              {/* <button 
+                onClick={() => setActiveTab('tracker')}
+                className={`px-4 py-2 rounded-t-lg transition duration-200 flex items-center ${activeTab === 'tracker' ? 'bg-blue-100 text-blue-700 border-b-2 border-blue-600' : 'text-gray-600 hover:bg-gray-100'}`}
               >
                 📍 Location Tracker
+              </button> */}
+              <button 
+                onClick={() => setActiveTab('map')}
+                className={`px-4 py-2 rounded-t-lg transition duration-200 flex items-center ${activeTab === 'map' ? 'bg-green-100 text-green-700 border-b-2 border-green-600' : 'text-gray-600 hover:bg-gray-100'}`}
+              >
+                 Live Map
               </button>
               <button 
-                onClick={() => navigate('/tourist/map')}
-                className="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition duration-200 flex items-center"
+                onClick={() => setActiveTab('safety')}
+                className={`px-4 py-2 rounded-t-lg transition duration-200 flex items-center ${activeTab === 'safety' ? 'bg-purple-100 text-purple-700 border-b-2 border-purple-600' : 'text-gray-600 hover:bg-gray-100'}`}
               >
-                🗺️ Live Map
+                 Safety zones and Emergency
               </button>
               <button 
-                onClick={() => navigate('/tourist/safety-map')}
-                className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition duration-200 flex items-center"
+                onClick={() => setActiveTab('ml')}
+                className={`px-4 py-2 rounded-t-lg transition duration-200 flex items-center ${activeTab === 'ml' ? 'bg-orange-100 text-orange-700 border-b-2 border-orange-600' : 'text-gray-600 hover:bg-gray-100'}`}
               >
-                🛡️ Safety Map
+                 ML Detection
               </button>
             </div>
-          </nav>
+          </div>
         </div>
       </div>
 
@@ -414,19 +446,19 @@ function Tourist() {
         </div>
       )}
 
-      {/* Main Content */}
+      {/* Main Content Area */}
       <div className="container mx-auto px-4 py-6">
-        <Routes>
-          <Route path="/" element={<Navigate to="/tourist/tracker" replace />} />
-          <Route path="/tracker" element={<GeoFenceTracker />} />
-          <Route path="/map" element={<LiveGeoMap />} />
-          <Route path="/safety-map" element={<SafetyMap />} />
-        </Routes>
+        {/* Tab Content */}
+        {activeTab === 'tracker' && <GeoFenceTracker />}
+        {activeTab === 'map' && <LiveGeoMap />}
+        {activeTab === 'safety' && <SafetyMap />}
+        {activeTab === 'ml' && <MLTracker touristId={touristId} />}
         
+        {/* Always show these components at the bottom */}
         <div className="mt-8">
           <GeofenceList />
         </div>
-        <div>
+        <div className="mt-6">
           <UserRegistration />
         </div>
       </div>
@@ -439,6 +471,7 @@ function Tourist() {
           <p>2. Stay where you are if it's safe to do so</p>
           <p>3. Keep your phone accessible for further instructions</p>
           <p className="mt-2 text-gray-400">Your location is being shared with authorities</p>
+          <p className="text-xs text-gray-500 mt-2">Tourist ID: {touristId}</p>
         </div>
       </div>
     </div>

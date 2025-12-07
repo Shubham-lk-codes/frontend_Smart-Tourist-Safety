@@ -992,7 +992,7 @@ function Police() {
               </div>
               <div className="text-sm">
                 <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded mr-3">
-                  👥 Users: {activeConnections}
+                   Users: {activeConnections}
                 </span>
                 <span className="px-3 py-1 bg-red-100 text-red-800 rounded mr-3">
                   🚨 Emergencies: {emergencyStats.active} active
@@ -1039,12 +1039,12 @@ function Police() {
             >
               🗺️ Live Emergency Map
             </a>
-            <a
+            {/* <a
               href="/police/lookup"
               className="px-6 py-4 text-gray-600 hover:text-blue-600 hover:bg-gray-50 font-semibold transition duration-200"
             >
               👤 User Lookup
-            </a>
+            </a> */}
             <a
               href="/police/history"
               className="px-6 py-4 text-gray-600 hover:text-blue-600 hover:bg-gray-50 font-semibold transition duration-200"
