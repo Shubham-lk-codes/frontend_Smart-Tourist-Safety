@@ -12,6 +12,7 @@ const UserRegistration = () => {
   });
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
+  const [blockchainData, setBlockchainData] = useState(null); // New state for blockchain data
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
 
@@ -21,20 +22,43 @@ const UserRegistration = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setBlockchainData(null); // Reset blockchain data
 
     try {
-      // Enhanced payload for tourist registration
+      // Send ONLY the form fields (remove extra fields)
       const payload = {
-        ...formData,
-        departmentId: 'TOURISM_DEPT_001', // ID of the tourism department
-        registeredAt: 'Checkpoint_Goa_001',
-        type: 'TOURIST',
-        timestamp: new Date().toISOString()
+        name: formData.name,
+        aadhar: formData.aadhar,
+        phone: formData.phone,
+        email: formData.email,
+        location: formData.location,
+        emergencyContact: formData.emergencyContact
       };
 
+      console.log('📤 Sending registration data:', payload);
+
       const response = await axios.post(`${API_BASE}/register`, payload);
-      setUser(response.data.user);
-      
+      console.log('✅ Registration response:', response.data);
+
+      // Set user data from response
+      if (response.data.user) {
+        setUser(response.data.user);
+      } else if (response.data.success) {
+        // Fallback: if response structure is different
+        setUser({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          userId: response.data.digitalId?.userId || 'N/A',
+          touristId: response.data.digitalId?.touristId || 'N/A'
+        });
+      }
+
+      // Set blockchain data
+      if (response.data.blockchain) {
+        setBlockchainData(response.data.blockchain);
+      }
+
       // Reset form
       setFormData({ 
         name: '', 
@@ -49,7 +73,17 @@ const UserRegistration = () => {
       setShowForm(false);
       
     } catch (err) {
-      setError(err.response?.data?.error || 'Registration failed');
+      console.error('❌ Registration error:', err);
+      if (err.response) {
+        console.error('Response error:', err.response.data);
+        setError(err.response.data.error || err.response.data.details || 'Registration failed');
+      } else if (err.request) {
+        console.error('No response received:', err.request);
+        setError('Cannot connect to server. Make sure backend is running on port 3000.');
+      } else {
+        console.error('Request error:', err.message);
+        setError(err.message || 'Registration failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -65,6 +99,7 @@ const UserRegistration = () => {
   // Reset everything and start fresh
   const handleNewRegistration = () => {
     setUser(null);
+    setBlockchainData(null);
     setShowForm(true);
     setError('');
   };
@@ -81,6 +116,18 @@ const UserRegistration = () => {
       emergencyContact: '' 
     });
     setError('');
+    setBlockchainData(null);
+  };
+
+  // Check blockchain status
+  const checkBlockchainStatus = async () => {
+    try {
+      const response = await axios.get(`${API_BASE}/blockchain/info`);
+      console.log('🔗 Blockchain status:', response.data);
+      alert(`Blockchain Status: ${response.data.blockchain?.status || 'Unknown'}`);
+    } catch (err) {
+      console.error('Blockchain status check failed:', err);
+    }
   };
 
   return (
@@ -93,15 +140,25 @@ const UserRegistration = () => {
             <p className="text-gray-600 mt-1">Create blockchain-based digital IDs for tourists</p>
           </div>
           
-          {!showForm && !user && (
+          <div className="flex items-center space-x-3">
             <button
-              onClick={() => setShowForm(true)}
-              className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition-all duration-200 flex items-center space-x-2"
+              onClick={checkBlockchainStatus}
+              className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition duration-200 text-sm font-medium"
+              title="Check blockchain connection"
             >
-              <span className="text-lg">➕</span>
-              <span>Add New Tourist</span>
+              🔗 Check Blockchain
             </button>
-          )}
+            
+            {!showForm && !user && (
+              <button
+                onClick={() => setShowForm(true)}
+                className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition-all duration-200 flex items-center space-x-2"
+              >
+                <span className="text-lg">➕</span>
+                <span>Add New Tourist</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -121,36 +178,83 @@ const UserRegistration = () => {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              {/* Tourist Information Card */}
               <div className="bg-white/80 p-4 rounded-xl border border-emerald-200">
-                <p className="text-sm text-gray-600 mb-1">Tourist Information</p>
-                <p className="font-bold text-gray-800">{user.name}</p>
-                <p className="text-gray-600 text-sm">{user.email}</p>
-                <p className="text-gray-600 text-sm">{user.phone}</p>
-              </div>
-              
-              <div className="bg-white/80 p-4 rounded-xl border border-emerald-200">
-                <p className="text-sm text-gray-600 mb-1">Blockchain Details</p>
-                <div className="space-y-1">
-                  <p className="text-xs">
-                    <span className="text-gray-700 font-medium">ID:</span>{' '}
-                    <code className="bg-emerald-100 px-2 py-1 rounded text-emerald-800 font-mono">
+                <div className="flex items-center mb-3">
+                  <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center mr-3">
+                    <span className="text-emerald-600">👤</span>
+                  </div>
+                  <h4 className="font-bold text-gray-800">Tourist Information</h4>
+                </div>
+                <div className="space-y-2">
+                  <p>
+                    <span className="text-sm text-gray-600">Name:</span>{' '}
+                    <span className="font-medium">{user.name || user.fullName}</span>
+                  </p>
+                  <p>
+                    <span className="text-sm text-gray-600">Email:</span>{' '}
+                    <span className="font-medium">{user.email}</span>
+                  </p>
+                  <p>
+                    <span className="text-sm text-gray-600">Phone:</span>{' '}
+                    <span className="font-medium">{user.phone}</span>
+                  </p>
+                  <p>
+                    <span className="text-sm text-gray-600">User ID:</span>{' '}
+                    <code className="bg-gray-100 px-2 py-1 rounded text-gray-800 font-mono text-sm">
                       {user.userId}
                     </code>
                   </p>
-                  <p className="text-xs">
-                    <span className="text-gray-700 font-medium">Block Hash:</span>{' '}
-                    <code className="bg-gray-100 px-2 py-1 rounded text-gray-800 font-mono truncate">
-                      {user.blockHash?.substring(0, 30)}...
-                    </code>
-                  </p>
-                  <p className="text-xs">
-                    <span className="text-gray-700 font-medium">Timestamp:</span>{' '}
-                    <span className="text-gray-600">{new Date().toLocaleString()}</span>
-                  </p>
                 </div>
+              </div>
+              
+              {/* Blockchain Details Card */}
+              <div className="bg-white/80 p-4 rounded-xl border border-emerald-200">
+                <div className="flex items-center mb-3">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                    <span className="text-blue-600">⛓️</span>
+                  </div>
+                  <h4 className="font-bold text-gray-800">Blockchain Details</h4>
+                </div>
+                
+                {blockchainData ? (
+                  <div className="space-y-2">
+                    <p>
+                      <span className="text-sm text-gray-600">Status:</span>{' '}
+                      <span className={`font-medium ${blockchainData.isRealBlockchain ? 'text-green-600' : 'text-yellow-600'}`}>
+                        {blockchainData.note || blockchainData.status}
+                      </span>
+                    </p>
+                    <p>
+                      <span className="text-sm text-gray-600">Transaction:</span>{' '}
+                      <code className="bg-gray-100 px-2 py-1 rounded text-gray-800 font-mono text-xs truncate block">
+                        {blockchainData.transactionHash?.substring(0, 30)}...
+                      </code>
+                    </p>
+                    <p>
+                      <span className="text-sm text-gray-600">Network:</span>{' '}
+                      <span className="font-medium">{blockchainData.blockchain || blockchainData.network}</span>
+                    </p>
+                    {blockchainData.explorerUrl && (
+                      <a 
+                        href={blockchainData.explorerUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm"
+                      >
+                        🔗 View on Explorer
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <p className="text-gray-500">Blockchain data not available</p>
+                  </div>
+                )}
               </div>
             </div>
             
+            {/* Action Buttons */}
             <div className="flex space-x-3">
               <button
                 onClick={handleNewRegistration}
@@ -164,6 +268,12 @@ const UserRegistration = () => {
                 className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-medium transition duration-200"
               >
                 Print ID Card
+              </button>
+              <button
+                onClick={checkBlockchainStatus}
+                className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-4 py-2 rounded-lg font-medium transition duration-200"
+              >
+                Check Blockchain Status
               </button>
             </div>
           </div>
@@ -299,7 +409,14 @@ const UserRegistration = () => {
                 <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-r-lg">
                   <div className="flex items-center">
                     <span className="text-lg mr-2">⚠️</span>
-                    <p>{error}</p>
+                    <div>
+                      <p className="font-medium">{error}</p>
+                      {error.includes('Cannot connect') && (
+                        <p className="text-sm mt-1">
+                          Make sure your backend server is running: <code>npm run dev</code> in backend folder
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -346,12 +463,20 @@ const UserRegistration = () => {
             <p className="text-gray-600 mb-6 max-w-md mx-auto">
               Click "Add New Tourist" above to begin creating a blockchain-based digital ID for a tourist.
             </p>
-            <button
-              onClick={() => setShowForm(true)}
-              className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-8 py-3 rounded-xl font-semibold hover:shadow-lg transition-all duration-200"
-            >
-              Get Started
-            </button>
+            <div className="flex justify-center space-x-3">
+              <button
+                onClick={() => setShowForm(true)}
+                className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-8 py-3 rounded-xl font-semibold hover:shadow-lg transition-all duration-200"
+              >
+                Get Started
+              </button>
+              <button
+                onClick={checkBlockchainStatus}
+                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition duration-200"
+              >
+                Check Connection
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -370,6 +495,10 @@ const UserRegistration = () => {
           <span className="flex items-center">
             <div className="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
             GDPR Compliant
+          </span>
+          <span className="flex items-center">
+            <div className="w-2 h-2 bg-orange-500 rounded-full mr-2"></div>
+            Polygon Amoy Network
           </span>
         </div>
       </div>
