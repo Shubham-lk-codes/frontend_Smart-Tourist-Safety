@@ -109,7 +109,7 @@ const AddGeofence = ({ onGeofenceAdded }) => {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [polygonPoints, setPolygonPoints] = useState([]);
   const [geofences, setGeofences] = useState([]);
-  const [mapCenter, setMapCenter] = useState([30.710170, 76.765594]); // Default coordinates
+  const [mapCenter, setMapCenter] = useState([30.710170, 76.765594]);
   const [selectedFence, setSelectedFence] = useState(null);
   const [viewingFence, setViewingFence] = useState(false);
   const [mapBounds, setMapBounds] = useState(null);
@@ -120,27 +120,17 @@ const AddGeofence = ({ onGeofenceAdded }) => {
 
   const API_BASE = 'http://localhost:3000/api/geo';
 
-  // Initialize when component mounts
   useEffect(() => {
     fetchGeofences();
-    // Test location - remove this in production
     testGeolocation();
   }, []);
 
-  // Function to test if geolocation is working
   const testGeolocation = () => {
     if (navigator.geolocation) {
       console.log('✅ Geolocation is supported');
       navigator.permissions.query({ name: 'geolocation' })
         .then(permissionStatus => {
           console.log('📍 Geolocation permission status:', permissionStatus.state);
-          if (permissionStatus.state === 'granted') {
-            console.log('✅ Permission already granted');
-          } else if (permissionStatus.state === 'prompt') {
-            console.log('ℹ️ Permission will be requested when needed');
-          } else {
-            console.log('❌ Permission denied');
-          }
         })
         .catch(err => {
           console.log('❌ Error checking permission:', err);
@@ -151,11 +141,9 @@ const AddGeofence = ({ onGeofenceAdded }) => {
     }
   };
 
-  // Fetch all geofences from the server
   const fetchGeofences = async () => {
     try {
       const response = await axios.get(`${API_BASE}/geofences`);
-      
       if (response.data && Array.isArray(response.data)) {
         setGeofences(response.data);
       } else {
@@ -196,7 +184,6 @@ const AddGeofence = ({ onGeofenceAdded }) => {
     }
   };
 
-  // SIMPLE AND RELIABLE getCurrentLocation function
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
       setMessage('❌ Geolocation is not supported by your browser');
@@ -215,13 +202,6 @@ const AddGeofence = ({ onGeofenceAdded }) => {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude, accuracy } = position.coords;
-        
-        console.log('✅ Location obtained:', {
-          lat: latitude,
-          lng: longitude,
-          accuracy: accuracy
-        });
-        
         const location = {
           lat: latitude,
           lng: longitude,
@@ -230,8 +210,6 @@ const AddGeofence = ({ onGeofenceAdded }) => {
         };
         
         setCurrentLocation(location);
-        
-        // Update form with current location
         setFormData(prev => ({
           ...prev,
           center: {
@@ -240,19 +218,10 @@ const AddGeofence = ({ onGeofenceAdded }) => {
           }
         }));
         
-        // Update map to show current location
         setMapCenter([latitude, longitude]);
-        setMapZoom(16); // Zoom in more for current location
-        
-        setMessage(`✅ Your current location has been set!`);
+        setMapZoom(16);
+        setMessage('✅ Your current location has been set!');
         setLoading(false);
-        
-        // Log for debugging
-        console.log('📍 Current location set to:', {
-          latitude: latitude.toFixed(6),
-          longitude: longitude.toFixed(6),
-          accuracy: `${accuracy.toFixed(0)} meters`
-        });
       },
       (error) => {
         setLoading(false);
@@ -275,63 +244,8 @@ const AddGeofence = ({ onGeofenceAdded }) => {
         
         setMessage(`❌ ${errorMessage}`);
         console.error('Geolocation error:', error);
-        
-        // Fallback: Try to get location with less accurate settings
-        setTimeout(() => {
-          if (!currentLocation) {
-            getLocationWithFallback();
-          }
-        }, 1000);
       },
       options
-    );
-  };
-
-  // Fallback method for getting location
-  const getLocationWithFallback = () => {
-    if (!navigator.geolocation) return;
-    
-    const fallbackOptions = {
-      enableHighAccuracy: false,
-      timeout: 5000,
-      maximumAge: 300000 // 5 minutes
-    };
-    
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        const location = {
-          lat: latitude,
-          lng: longitude,
-          accuracy: position.coords.accuracy || 10000, // Default 10km accuracy
-          timestamp: position.timestamp
-        };
-        
-        setCurrentLocation(location);
-        setFormData(prev => ({
-          ...prev,
-          center: {
-            lat: latitude.toFixed(6),
-            lng: longitude.toFixed(6)
-          }
-        }));
-        setMapCenter([latitude, longitude]);
-        setMapZoom(14);
-        
-        setMessage('✅ Location obtained with fallback method');
-      },
-      (error) => {
-        console.error('Fallback geolocation also failed:', error);
-        // Use default coordinates as last resort
-        setMessage('⚠️ Using default coordinates. Please enable location services for accurate results.');
-        setCurrentLocation({
-          lat: 30.710170,
-          lng: 76.765594,
-          accuracy: 10000,
-          timestamp: Date.now()
-        });
-      },
-      fallbackOptions
     );
   };
 
@@ -368,6 +282,7 @@ const AddGeofence = ({ onGeofenceAdded }) => {
     setMessage('');
 
     try {
+      // Validation
       if (!formData.name.trim()) {
         throw new Error('Zone name is required');
       }
@@ -395,6 +310,7 @@ const AddGeofence = ({ onGeofenceAdded }) => {
         }
       }
 
+      // Prepare data for API - FIXED: Ensure proper format
       const geofenceData = {
         name: formData.name.trim(),
         type: formData.type,
@@ -409,10 +325,14 @@ const AddGeofence = ({ onGeofenceAdded }) => {
       }
 
       if (formData.type === 'polygon') {
-        geofenceData.coordinates = polygonPoints;
+        // FIXED: Ensure coordinates are properly formatted
+        geofenceData.coordinates = polygonPoints.map(point => ({
+          lat: parseFloat(point.lat.toFixed(6)), // Round to 6 decimal places
+          lng: parseFloat(point.lng.toFixed(6))
+        }));
       }
 
-      console.log('Sending geofence data:', geofenceData);
+      console.log('Sending geofence data:', JSON.stringify(geofenceData, null, 2));
 
       const response = await axios.post(`${API_BASE}/geofences`, geofenceData, {
         headers: {
@@ -431,20 +351,35 @@ const AddGeofence = ({ onGeofenceAdded }) => {
           coordinates: []
         });
         setPolygonPoints([]);
-
         await fetchGeofences();
-
+        
         if (onGeofenceAdded) {
           onGeofenceAdded();
         }
       }
     } catch (err) {
       console.error('Submission error:', err);
-      const errorMessage = err.response?.data?.error || 
-                          err.response?.data?.details?.[0] || 
-                          err.message || 
-                          'Unknown error occurred';
-      setMessage('❌ Error adding geofence: ' + errorMessage);
+      console.error('Error response:', err.response?.data);
+      
+      let errorMessage = 'Error adding geofence: ';
+      if (err.response?.data) {
+        if (err.response.data.error) {
+          errorMessage += err.response.data.error;
+        }
+        if (err.response.data.details) {
+          if (typeof err.response.data.details === 'string') {
+            errorMessage += ' - ' + err.response.data.details;
+          } else if (Array.isArray(err.response.data.details)) {
+            errorMessage += ' - ' + err.response.data.details.join(', ');
+          } else if (typeof err.response.data.details === 'object') {
+            errorMessage += ' - ' + Object.values(err.response.data.details).join(', ');
+          }
+        }
+      } else {
+        errorMessage += err.message;
+      }
+      
+      setMessage(`❌ ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -544,7 +479,33 @@ const AddGeofence = ({ onGeofenceAdded }) => {
     }
   };
 
-  // Safe geofences array for rendering
+  // Helper function to quickly add your test coordinates
+  const addTestPolygon = () => {
+    const testPoints = [
+      { lat: 30.715889, lng: 76.782278 },
+      { lat: 30.715861, lng: 76.782167 },
+      { lat: 30.716222, lng: 76.782222 },
+      { lat: 30.716222, lng: 76.782111 }
+    ];
+    
+    setPolygonPoints(testPoints);
+    setFormData(prev => ({
+      ...prev,
+      name: 'Test Polygon Area',
+      type: 'polygon'
+    }));
+    
+    // Set map to show the polygon area
+    const lats = testPoints.map(p => p.lat);
+    const lngs = testPoints.map(p => p.lng);
+    const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+    const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+    
+    setMapCenter([centerLat, centerLng]);
+    setMapZoom(16);
+    setMessage('✅ Test polygon points added!');
+  };
+
   const safeGeofences = Array.isArray(geofences) ? geofences : [];
 
   return (
@@ -681,6 +642,20 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                   )}
                 </button>
 
+                {/* Quick test button for polygon coordinates */}
+                {formData.type === 'polygon' && (
+                  <button
+                    type="button"
+                    onClick={addTestPolygon}
+                    className="w-full bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center justify-center text-lg"
+                  >
+                    <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Add Test Polygon Coordinates
+                  </button>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-600 mb-2">Latitude</label>
@@ -693,7 +668,7 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                         onChange={handleChange}
                         required={formData.type === 'circle'}
                         className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-l-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
-                        placeholder="30.710170"
+                        placeholder="e.g., 30.715889"
                       />
                       <button
                         type="button"
@@ -719,7 +694,7 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                         onChange={handleChange}
                         required={formData.type === 'circle'}
                         className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-l-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
-                        placeholder="76.765594"
+                        placeholder="e.g., 76.782278"
                       />
                       <button
                         type="button"
@@ -899,14 +874,14 @@ const AddGeofence = ({ onGeofenceAdded }) => {
             </div>
           )}
 
-          {/* Debug Info - Remove in production */}
+          {/* Debug Info */}
           <div className="mt-4 p-3 bg-gray-100/80 rounded-xl text-xs text-gray-600">
-            <p className="font-semibold">ℹ️ Location Tips:</p>
+            <p className="font-semibold">ℹ️ Quick Tips:</p>
             <ul className="mt-1 space-y-1">
-              <li>• Make sure location services are enabled on your device</li>
-              <li>• Allow location permission when browser asks</li>
-              <li>• Try refreshing the page if location doesn't work</li>
-              <li>• Use manual coordinates as fallback</li>
+              <li>• For polygons, click "Add Test Polygon Coordinates" to quickly add sample points</li>
+              <li>• Use "Add Point" to add custom coordinates</li>
+              <li>• Minimum 3 points required for polygon</li>
+              <li>• Click on existing zones on the map to view them</li>
             </ul>
           </div>
         </div>
@@ -967,12 +942,10 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               />
               
-              {/* Update map when current location changes */}
               {currentLocation && (
                 <MapUpdater center={currentLocation} zoom={16} />
               )}
               
-              {/* Update map when viewing fence */}
               {viewingFence && selectedFence && (
                 <MapUpdater 
                   center={{
@@ -987,7 +960,6 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                 />
               )}
               
-              {/* Fit bounds for selected fence */}
               {viewingFence && mapBounds && (
                 <FitBoundsUpdater bounds={mapBounds} />
               )}
@@ -1005,11 +977,6 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                           Accuracy: ±{currentLocation.accuracy.toFixed(0)} meters<br />
                         </>
                       )}
-                      {currentLocation.timestamp && (
-                        <>
-                          Time: {new Date(currentLocation.timestamp).toLocaleTimeString()}<br />
-                        </>
-                      )}
                       <button
                         onClick={() => {
                           setMapCenter([currentLocation.lat, currentLocation.lng]);
@@ -1022,6 +989,45 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                     </div>
                   </Popup>
                 </Marker>
+              )}
+              
+              {/* Show polygon points being created */}
+              {formData.type === 'polygon' && polygonPoints.length > 0 && (
+                <>
+                  {polygonPoints.map((point, index) => (
+                    <Marker key={index} position={[point.lat, point.lng]}>
+                      <Popup>
+                        <div className="text-center">
+                          <strong>Polygon Point {index + 1}</strong><br />
+                          Lat: {point.lat.toFixed(6)}<br />
+                          Lng: {point.lng.toFixed(6)}
+                        </div>
+                      </Popup>
+                    </Marker>
+                  ))}
+                  
+                  {/* Show polygon preview */}
+                  {polygonPoints.length >= 3 && (
+                    <Polygon
+                      positions={polygonPoints.map(p => [p.lat, p.lng])}
+                      pathOptions={{
+                        color: 'purple',
+                        fillColor: 'purple',
+                        fillOpacity: 0.2,
+                        weight: 3,
+                        dashArray: '5, 5'
+                      }}
+                    >
+                      <Popup>
+                        <div className="text-center">
+                          <strong>Polygon Preview</strong><br />
+                          Points: {polygonPoints.length}<br />
+                          Area: {formatArea(calculatePolygonArea(polygonPoints))}
+                        </div>
+                      </Popup>
+                    </Polygon>
+                  )}
+                </>
               )}
               
               {/* Show all geofences on map */}
@@ -1073,9 +1079,6 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                 } else if (fence.type === 'polygon' && fence.coordinates) {
                   const polygonCoords = fence.coordinates.map(coord => [coord.lat, coord.lng]);
                   const area = calculatePolygonArea(fence.coordinates);
-                  
-                  const centerLat = fence.coordinates.reduce((sum, coord) => sum + coord.lat, 0) / fence.coordinates.length;
-                  const centerLng = fence.coordinates.reduce((sum, coord) => sum + coord.lng, 0) / fence.coordinates.length;
                   
                   return (
                     <Polygon
