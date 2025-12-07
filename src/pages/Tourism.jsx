@@ -13,7 +13,7 @@ const Tourism = () => {
       {/* <GeofenceList /> */}
       <UserRegistration />
       <AddGeofence />
-      <LiveGeoMap />
+      {/* <LiveGeoMap /> */}
     </div>
   );
 };

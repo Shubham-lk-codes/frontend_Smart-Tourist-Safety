@@ -30,7 +30,7 @@ function App() {
           <main>
             <Routes>
               {/* Tourist Routes - Ab Tourist component ke andar nested routes honge */}
-              <Route path="/tourist/*" element={<Tourist />} />
+              <Route path="/tourist" element={<Tourist />} />
               
               {/* Police Routes */}
               <Route path="/police/*" element={<Police />} />
