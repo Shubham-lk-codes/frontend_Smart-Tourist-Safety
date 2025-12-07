@@ -202,7 +202,7 @@ function SafetyMap() {
     switch(type) {
       case 'police_station': return 'bg-blue-100 border-blue-300';
       case 'hospital': return 'bg-red-100 border-red-300';
-      case 'embassy': return 'bg-purple-100 border-purple-300';
+      // case 'embassy': return 'bg-purple-100 border-purple-300';
       case 'tourist_center': return 'bg-yellow-100 border-yellow-300';
       case 'safe_haven': return 'bg-green-100 border-green-300';
       default: return 'bg-gray-100 border-gray-300';
@@ -216,7 +216,7 @@ function SafetyMap() {
       case 'fire': return 'bg-orange-50 border-orange-200';
       case 'tourist_helpline': return 'bg-yellow-50 border-yellow-200';
       case 'local_authority': return 'bg-purple-50 border-purple-200';
-      case 'embassy': return 'bg-indigo-50 border-indigo-200';
+      // case 'embassy': return 'bg-indigo-50 border-indigo-200';
       default: return 'bg-gray-50 border-gray-200';
     }
   }, []);
