@@ -179,7 +179,7 @@ function SafetyMap() {
     switch(type) {
       case 'police_station': return '🚓';
       case 'hospital': return '🏥';
-      case 'embassy': return '🏛️';
+      // case 'embassy': return '🏛️';
       case 'tourist_center': return '🏪';
       case 'safe_haven': return '🏠';
       default: return '📍';
@@ -193,7 +193,7 @@ function SafetyMap() {
       case 'fire': return '🚒';
       case 'tourist_helpline': return '🏖️';
       case 'local_authority': return '🏛️';
-      case 'embassy': return '🇺🇸';
+      // case 'embassy': return '🇺🇸';
       default: return '📞';
     }
   }, []);
