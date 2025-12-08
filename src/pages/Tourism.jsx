@@ -9,9 +9,11 @@ import UserRegistration from '../components/UserRegistration';
 
 const Tourism = () => {
   return (
-    <div>
+    <div className='m-10'>
       {/* <GeofenceList /> */}
-      <UserRegistration />
+      <div className='mb-10'>
+        <UserRegistration />
+      </div>
       <AddGeofence />
       {/* <LiveGeoMap /> */}
     </div>

@@ -131,7 +131,7 @@ const UserRegistration = () => {
   };
 
   return (
-    <div className="w-full mx-auto bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/60 overflow-hidden">
+    <div className="w-full mx-auto bg-white/80 backdrop-blur-sm  shadow-lg border border-gray-200/60 overflow-hidden">
       {/* Card Header */}
       <div className="p-6 border-b border-gray-200/60">
         <div className="flex justify-between items-center">
@@ -269,12 +269,12 @@ const UserRegistration = () => {
               >
                 Print ID Card
               </button>
-              <button
+              {/* <button
                 onClick={checkBlockchainStatus}
                 className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-4 py-2 rounded-lg font-medium transition duration-200"
               >
                 Check Blockchain Status
-              </button>
+              </button> */}
             </div>
           </div>
         ) : null}

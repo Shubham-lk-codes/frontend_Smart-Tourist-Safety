@@ -509,33 +509,32 @@ const AddGeofence = ({ onGeofenceAdded }) => {
   const safeGeofences = Array.isArray(geofences) ? geofences : [];
 
   return (
-    <div className="max-w-6xl mx-auto bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl overflow-hidden border border-gray-200/50">
+    <div className="max-w-6xl mx-auto bg-white rounded-lg shadow">
       {/* Header */}
-      <div className="bg-gradient-to-r from-green-500/10 to-blue-500/10 p-8 border-b border-gray-200/50">
+      <div className="border-b border-gray-200 px-6 py-4">
         <div className="text-center">
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
-            Create fenced Zone
-          </h2>
-          <p className="text-gray-600 text-lg mt-2">
-            Define geofence boundaries for tourist safety monitoring
+          <h2 className="text-xl font-bold text-gray-900">Create Restricted Zone</h2>
+          <p className="text-gray-600 text-sm mt-1">
+            Define geofence boundaries for safety monitoring
           </p>
         </div>
       </div>
 
       <div className="flex flex-col lg:flex-row">
         {/* Form Section */}
-        <div className="lg:w-1/2 p-8">
-          <form onSubmit={handleSubmit} className="space-y-8">
+        <div className="lg:w-1/2 p-6 border-r border-gray-200">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {/* Geofence Type */}
             <div>
-              <label className="block text-lg font-semibold text-gray-700 mb-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
                 Zone Type *
               </label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <label className={`relative flex cursor-pointer rounded-2xl border-2 p-6 focus:outline-none transition-all duration-200 ${formData.type === 'circle'
-                    ? 'border-blue-500 bg-blue-50/50 shadow-lg scale-105'
-                    : 'border-gray-300 bg-white/50 hover:border-gray-400'
-                  }`}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label className={`relative flex cursor-pointer rounded-lg border p-4 focus:outline-none transition-colors ${
+                  formData.type === 'circle'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}>
                   <input
                     type="radio"
                     name="type"
@@ -544,28 +543,22 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                     onChange={handleChange}
                     className="sr-only"
                   />
-                  <div className="flex w-full items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                        <span className="text-2xl">⭕</span>
-                      </div>
-                      <div className="text-left">
-                        <div className="font-semibold text-gray-900">Circular Zone</div>
-                        <div className="text-gray-500 text-sm mt-1">Define center and radius</div>
-                      </div>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <span className="text-xl">⭕</span>
                     </div>
-                    <div className="h-6 w-6 rounded-full border-2 border-gray-300 flex items-center justify-center">
-                      {formData.type === 'circle' && (
-                        <div className="h-3 w-3 rounded-full bg-blue-600"></div>
-                      )}
+                    <div className="text-left">
+                      <div className="font-medium text-gray-900">Circular Zone</div>
+                      <div className="text-gray-500 text-xs mt-1">Center and radius</div>
                     </div>
                   </div>
                 </label>
 
-                <label className={`relative flex cursor-pointer rounded-2xl border-2 p-6 focus:outline-none transition-all duration-200 ${formData.type === 'polygon'
-                    ? 'border-purple-500 bg-purple-50/50 shadow-lg scale-105'
-                    : 'border-gray-300 bg-white/50 hover:border-gray-400'
-                  }`}>
+                <label className={`relative flex cursor-pointer rounded-lg border p-4 focus:outline-none transition-colors ${
+                  formData.type === 'polygon'
+                    ? 'border-purple-500 bg-purple-50'
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}>
                   <input
                     type="radio"
                     name="type"
@@ -574,20 +567,13 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                     onChange={handleChange}
                     className="sr-only"
                   />
-                  <div className="flex w-full items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                        <span className="text-2xl">🔷</span>
-                      </div>
-                      <div className="text-left">
-                        <div className="font-semibold text-gray-900">Polygonal Zone</div>
-                        <div className="text-gray-500 text-sm mt-1">Define custom shape</div>
-                      </div>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <span className="text-xl">🔷</span>
                     </div>
-                    <div className="h-6 w-6 rounded-full border-2 border-gray-300 flex items-center justify-center">
-                      {formData.type === 'polygon' && (
-                        <div className="h-3 w-3 rounded-full bg-purple-600"></div>
-                      )}
+                    <div className="text-left">
+                      <div className="font-medium text-gray-900">Polygonal Zone</div>
+                      <div className="text-gray-500 text-xs mt-1">Custom shape</div>
                     </div>
                   </div>
                 </label>
@@ -596,7 +582,7 @@ const AddGeofence = ({ onGeofenceAdded }) => {
 
             {/* Geofence Name */}
             <div>
-              <label className="block text-lg font-semibold text-gray-700 mb-3">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Zone Name *
               </label>
               <input
@@ -605,27 +591,27 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                 value={formData.name}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-4 border-2 border-gray-300 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white/80 backdrop-blur-sm text-lg transition-all duration-200"
-                placeholder="e.g., Taj Mahal Safe Zone, Beach Area"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm"
+                placeholder="e.g., Taj Mahal Safe Zone"
               />
             </div>
 
             {/* Location Coordinates */}
-            <div className="space-y-4">
-              <label className="block text-lg font-semibold text-gray-700">
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-gray-700">
                 {formData.type === 'circle' ? 'Center Coordinates *' : 'Polygon Points *'}
               </label>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <button
                   type="button"
                   onClick={getCurrentLocation}
                   disabled={loading}
-                  className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:from-green-300 disabled:to-emerald-400 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-200 disabled:transform-none transform hover:scale-105 shadow-lg flex items-center justify-center text-lg"
+                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-medium py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center text-sm"
                 >
                   {loading ? (
                     <>
-                      <svg className="animate-spin -ml-1 mr-3 h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
@@ -633,7 +619,7 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                     </>
                   ) : (
                     <>
-                      <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
@@ -647,18 +633,18 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                   <button
                     type="button"
                     onClick={addTestPolygon}
-                    className="w-full bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center justify-center text-lg"
+                    className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-medium py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center text-sm"
                   >
-                    <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
                     Add Test Polygon Coordinates
                   </button>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-2">Latitude</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Latitude</label>
                     <div className="flex">
                       <input
                         type="number"
@@ -667,13 +653,13 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                         value={formData.center.lat}
                         onChange={handleChange}
                         required={formData.type === 'circle'}
-                        className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-l-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm"
                         placeholder="e.g., 30.715889"
                       />
                       <button
                         type="button"
                         onClick={handleManualLocationUpdate}
-                        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-r-2xl border-2 border-blue-500 transition-colors"
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-r-lg border border-blue-500 transition-colors"
                         title="Update map with these coordinates"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -684,7 +670,7 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-2">Longitude</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Longitude</label>
                     <div className="flex">
                       <input
                         type="number"
@@ -693,13 +679,13 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                         value={formData.center.lng}
                         onChange={handleChange}
                         required={formData.type === 'circle'}
-                        className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-l-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm"
                         placeholder="e.g., 76.782278"
                       />
                       <button
                         type="button"
                         onClick={handleManualLocationUpdate}
-                        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-r-2xl border-2 border-blue-500 transition-colors"
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-r-lg border border-blue-500 transition-colors"
                         title="Update map with these coordinates"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -713,46 +699,46 @@ const AddGeofence = ({ onGeofenceAdded }) => {
 
               {/* Polygon Controls */}
               {formData.type === 'polygon' && (
-                <div className="space-y-4">
-                  <div className="flex space-x-3">
+                <div className="space-y-3">
+                  <div className="flex space-x-2">
                     <button
                       type="button"
                       onClick={addPolygonPoint}
                       disabled={!formData.center.lat || !formData.center.lng}
-                      className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 disabled:from-blue-300 disabled:to-cyan-400 text-white font-semibold py-3 px-4 rounded-2xl transition-all duration-200 disabled:transform-none transform hover:scale-105 shadow-lg"
+                      className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-medium py-2 px-3 rounded-lg transition-colors text-sm"
                     >
                       Add Point
                     </button>
                     <button
                       type="button"
                       onClick={clearPolygon}
-                      className="flex-1 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white font-semibold py-3 px-4 rounded-2xl transition-all duration-200 transform hover:scale-105 shadow-lg"
+                      className="flex-1 bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-3 rounded-lg transition-colors text-sm"
                     >
                       Clear All
                     </button>
                   </div>
 
                   {polygonPoints.length > 0 && (
-                    <div className="bg-white/60 backdrop-blur-sm p-6 rounded-2xl border-2 border-gray-200/50">
-                      <p className="text-lg font-semibold text-gray-700 mb-4">
+                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                      <p className="text-sm font-medium text-gray-700 mb-3">
                         Polygon Points ({polygonPoints.length})
                       </p>
-                      <div className="max-h-48 overflow-y-auto space-y-2">
+                      <div className="max-h-40 overflow-y-auto space-y-2">
                         {polygonPoints.map((point, index) => (
-                          <div key={index} className="flex justify-between items-center text-sm bg-white/80 p-3 rounded-xl border border-gray-200 shadow-sm">
-                            <span className="font-semibold text-gray-700">Point {index + 1}</span>
+                          <div key={index} className="flex justify-between items-center text-xs bg-white p-2 rounded border border-gray-200">
+                            <span className="font-medium text-gray-700">Point {index + 1}</span>
                             <span className="font-mono text-gray-800">
                               {point.lat.toFixed(6)}, {point.lng.toFixed(6)}
                             </span>
                           </div>
                         ))}
                       </div>
-                      <p className="text-sm text-gray-500 mt-3">
+                      <p className="text-xs text-gray-500 mt-3">
                         ✅ Minimum 3 points required for polygon
                       </p>
                       {polygonPoints.length >= 3 && (
-                        <p className="text-sm text-green-600 font-semibold mt-2">
-                          📐 Estimated Area: {formatArea(calculatePolygonArea(polygonPoints))}
+                        <p className="text-sm text-green-600 font-medium mt-2">
+                          📐 Area: {formatArea(calculatePolygonArea(polygonPoints))}
                         </p>
                       )}
                     </div>
@@ -764,7 +750,7 @@ const AddGeofence = ({ onGeofenceAdded }) => {
             {/* Radius (only for circle) */}
             {formData.type === 'circle' && (
               <div>
-                <label className="block text-lg font-semibold text-gray-700 mb-3">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Safety Radius (meters) *
                 </label>
                 <input
@@ -775,15 +761,15 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                   required
                   min="1"
                   step="1"
-                  className="w-full px-4 py-4 border-2 border-gray-300 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white/80 backdrop-blur-sm text-lg transition-all duration-200"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm"
                   placeholder="Enter radius in meters"
                 />
-                <p className="text-sm text-gray-500 mt-2 ml-2">
+                <p className="text-xs text-gray-500 mt-1">
                   🎯 Recommended: 100-500 meters for tourist areas
                 </p>
                 {formData.radius && (
-                  <p className="text-sm text-green-600 font-semibold mt-2 ml-2">
-                    📐 Estimated Area: {formatArea(calculateCircleArea(parseFloat(formData.radius)))}
+                  <p className="text-sm text-green-600 font-medium mt-2">
+                    📐 Area: {formatArea(calculateCircleArea(parseFloat(formData.radius)))}
                   </p>
                 )}
               </div>
@@ -793,22 +779,22 @@ const AddGeofence = ({ onGeofenceAdded }) => {
             <button
               type="submit"
               disabled={loading || (formData.type === 'polygon' && polygonPoints.length < 3)}
-              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:from-blue-300 disabled:to-purple-400 text-white font-bold py-5 px-6 rounded-2xl transition-all duration-200 disabled:transform-none transform hover:scale-105 shadow-2xl flex items-center justify-center text-lg"
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center text-sm"
             >
               {loading ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-3 h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Creating Safe Zone...
+                  Creating Restricted Zone...
                 </>
               ) : (
                 <>
-                  <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  Create fenced Zone
+                  Create Restricted Zone
                 </>
               )}
             </button>
@@ -816,43 +802,44 @@ const AddGeofence = ({ onGeofenceAdded }) => {
 
           {/* Message Display */}
           {message && (
-            <div className={`mt-8 p-4 rounded-2xl backdrop-blur-sm border ${message.includes('✅')
-                ? 'bg-green-100/80 border-green-300 text-green-800'
+            <div className={`mt-6 p-3 rounded-lg border ${
+              message.includes('✅')
+                ? 'bg-green-50 border-green-200 text-green-800'
                 : message.includes('🔍')
-                ? 'bg-blue-100/80 border-blue-300 text-blue-800'
+                ? 'bg-blue-50 border-blue-200 text-blue-800'
                 : message.includes('📍')
-                ? 'bg-blue-100/80 border-blue-300 text-blue-800'
-                : 'bg-red-100/80 border-red-300 text-red-800'
-              }`}>
+                ? 'bg-blue-50 border-blue-200 text-blue-800'
+                : 'bg-red-50 border-red-200 text-red-800'
+            }`}>
               <div className="flex items-center">
                 {message.includes('✅') ? (
-                  <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
                 ) : message.includes('🔍') ? (
-                  <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
                   </svg>
                 ) : message.includes('📍') ? (
-                  <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 ) : (
-                  <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                   </svg>
                 )}
-                <span className="font-semibold">{message}</span>
+                <span className="text-sm font-medium">{message}</span>
               </div>
             </div>
           )}
 
           {/* Current Location Preview */}
           {currentLocation && (
-            <div className="mt-8 bg-blue-50/80 backdrop-blur-sm p-4 rounded-2xl border border-blue-200/50">
-              <p className="text-sm font-semibold text-blue-800">📍 Your Current Location:</p>
-              <p className="font-mono text-sm text-blue-600 mt-1">
+            <div className="mt-6 bg-blue-50 p-3 rounded-lg border border-blue-200">
+              <p className="text-xs font-medium text-blue-800">📍 Your Current Location:</p>
+              <p className="font-mono text-xs text-blue-600 mt-1">
                 Lat: {currentLocation.lat.toFixed(6)}, Lng: {currentLocation.lng.toFixed(6)}
               </p>
               {currentLocation.accuracy && (
@@ -867,17 +854,17 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                   setMapZoom(16);
                   setMessage('📍 Centered map on your current location');
                 }}
-                className="mt-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-sm transition-colors"
+                className="mt-2 bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition-colors"
               >
                 Center Map Here
               </button>
             </div>
           )}
 
-          {/* Debug Info */}
-          <div className="mt-4 p-3 bg-gray-100/80 rounded-xl text-xs text-gray-600">
-            <p className="font-semibold">ℹ️ Quick Tips:</p>
-            <ul className="mt-1 space-y-1">
+          {/* Quick Tips */}
+          <div className="mt-4 p-3 bg-gray-50 rounded-lg text-xs text-gray-600">
+            <p className="font-medium mb-2">ℹ️ Quick Tips:</p>
+            <ul className="space-y-1">
               <li>• For polygons, click "Add Test Polygon Coordinates" to quickly add sample points</li>
               <li>• Use "Add Point" to add custom coordinates</li>
               <li>• Minimum 3 points required for polygon</li>
@@ -887,10 +874,10 @@ const AddGeofence = ({ onGeofenceAdded }) => {
         </div>
 
         {/* Map Section */}
-        <div className="lg:w-1/2 p-8 border-l border-gray-200/50">
-          <div className="mb-6">
-            <h3 className="text-2xl font-bold text-gray-800 mb-2">Geofence Map</h3>
-            <p className="text-gray-600">View all created safety zones and their coverage areas</p>
+        <div className="lg:w-1/2 p-6">
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Geofence Map</h3>
+            <p className="text-sm text-gray-600">View all created safety zones and their coverage areas</p>
           </div>
 
           {/* View Fence Area Button */}
@@ -904,21 +891,22 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                     viewFenceArea(safeGeofences[0]);
                   }
                 }}
-                className={`w-full ${viewingFence 
-                  ? 'bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700' 
-                  : 'bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700'
-                } text-white font-semibold py-3 px-4 rounded-2xl transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center justify-center`}
+                className={`w-full ${
+                  viewingFence 
+                    ? 'bg-red-500 hover:bg-red-600' 
+                    : 'bg-blue-500 hover:bg-blue-600'
+                } text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center text-sm`}
               >
                 {viewingFence ? (
                   <>
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                     Close Fence View
                   </>
                 ) : (
                   <>
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                     </svg>
@@ -930,7 +918,7 @@ const AddGeofence = ({ onGeofenceAdded }) => {
           )}
 
           {/* Real Map Container */}
-          <div className="w-full h-96 rounded-2xl border-2 border-gray-300/50 shadow-inner overflow-hidden mb-6">
+          <div className="w-full h-96 rounded-lg border border-gray-300 overflow-hidden mb-6">
             <MapContainer 
               center={mapCenter} 
               zoom={mapZoom} 
@@ -969,20 +957,22 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                 <Marker position={[currentLocation.lat, currentLocation.lng]}>
                   <Popup>
                     <div className="text-center">
-                      <strong>📍 Your Current Location</strong><br />
-                      Lat: {currentLocation.lat.toFixed(6)}<br />
-                      Lng: {currentLocation.lng.toFixed(6)}<br />
-                      {currentLocation.accuracy && (
-                        <>
-                          Accuracy: ±{currentLocation.accuracy.toFixed(0)} meters<br />
-                        </>
-                      )}
+                      <strong className="text-sm">📍 Your Current Location</strong><br />
+                      <div className="text-xs mt-1">
+                        Lat: {currentLocation.lat.toFixed(6)}<br />
+                        Lng: {currentLocation.lng.toFixed(6)}<br />
+                        {currentLocation.accuracy && (
+                          <>
+                            Accuracy: ±{currentLocation.accuracy.toFixed(0)} meters<br />
+                          </>
+                        )}
+                      </div>
                       <button
                         onClick={() => {
                           setMapCenter([currentLocation.lat, currentLocation.lng]);
                           setMapZoom(16);
                         }}
-                        className="mt-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-sm transition-colors"
+                        className="mt-2 bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition-colors"
                       >
                         Center Here
                       </button>
@@ -998,9 +988,11 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                     <Marker key={index} position={[point.lat, point.lng]}>
                       <Popup>
                         <div className="text-center">
-                          <strong>Polygon Point {index + 1}</strong><br />
-                          Lat: {point.lat.toFixed(6)}<br />
-                          Lng: {point.lng.toFixed(6)}
+                          <strong className="text-sm">Polygon Point {index + 1}</strong><br />
+                          <div className="text-xs">
+                            Lat: {point.lat.toFixed(6)}<br />
+                            Lng: {point.lng.toFixed(6)}
+                          </div>
                         </div>
                       </Popup>
                     </Marker>
@@ -1020,9 +1012,11 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                     >
                       <Popup>
                         <div className="text-center">
-                          <strong>Polygon Preview</strong><br />
-                          Points: {polygonPoints.length}<br />
-                          Area: {formatArea(calculatePolygonArea(polygonPoints))}
+                          <strong className="text-sm">Polygon Preview</strong><br />
+                          <div className="text-xs mt-1">
+                            Points: {polygonPoints.length}<br />
+                            Area: {formatArea(calculatePolygonArea(polygonPoints))}
+                          </div>
                         </div>
                       </Popup>
                     </Polygon>
@@ -1052,22 +1046,24 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                       }}
                     >
                       <Tooltip permanent direction="center" className="custom-tooltip">
-                        <div className="text-center font-semibold">
-                          {fence.name}<br />
-                          <span className="text-xs">{formatArea(area)}</span>
+                        <div className="text-center">
+                          <div className="font-semibold text-xs">{fence.name}</div>
+                          <div className="text-xs">{formatArea(area)}</div>
                         </div>
                       </Tooltip>
                       <Popup>
                         <div className="text-center">
-                          <strong>{fence.name}</strong><br />
-                          Type: Circular Zone<br />
-                          Radius: {fence.radius}m<br />
-                          Area: {formatArea(area)}<br />
-                          Center: {fence.center.lat.toFixed(6)}, {fence.center.lng.toFixed(6)}
+                          <strong className="text-sm">{fence.name}</strong><br />
+                          <div className="text-xs mt-1">
+                            Type: Circular Zone<br />
+                            Radius: {fence.radius}m<br />
+                            Area: {formatArea(area)}<br />
+                            Center: {fence.center.lat.toFixed(6)}, {fence.center.lng.toFixed(6)}
+                          </div>
                           <div className="mt-2">
                             <button
                               onClick={() => viewFenceArea(fence)}
-                              className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-sm transition-colors"
+                              className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition-colors"
                             >
                               {viewingFence && selectedFence?._id === fence._id ? 'Close View' : 'View This Fence'}
                             </button>
@@ -1097,21 +1093,23 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                       }}
                     >
                       <Tooltip permanent direction="center" className="custom-tooltip">
-                        <div className="text-center font-semibold">
-                          {fence.name}<br />
-                          <span className="text-xs">{formatArea(area)}</span>
+                        <div className="text-center">
+                          <div className="font-semibold text-xs">{fence.name}</div>
+                          <div className="text-xs">{formatArea(area)}</div>
                         </div>
                       </Tooltip>
                       <Popup>
                         <div className="text-center">
-                          <strong>{fence.name}</strong><br />
-                          Type: Polygonal Zone<br />
-                          Points: {fence.coordinates.length}<br />
-                          Area: {formatArea(area)}<br />
+                          <strong className="text-sm">{fence.name}</strong><br />
+                          <div className="text-xs mt-1">
+                            Type: Polygonal Zone<br />
+                            Points: {fence.coordinates.length}<br />
+                            Area: {formatArea(area)}
+                          </div>
                           <div className="mt-2">
                             <button
                               onClick={() => viewFenceArea(fence)}
-                              className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-sm transition-colors"
+                              className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition-colors"
                             >
                               {viewingFence && selectedFence?._id === fence._id ? 'Close View' : 'View This Fence'}
                             </button>
@@ -1126,59 +1124,62 @@ const AddGeofence = ({ onGeofenceAdded }) => {
             </MapContainer>
           </div>
 
-          {/* Restricted Zones List with Area Summary */}
-          <div className="bg-white/60 backdrop-blur-sm rounded-2xl border-2 border-gray-200/50 p-6">
+          {/* Restricted Zones List */}
+          <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
             <div className="flex justify-between items-center mb-4">
-              <h4 className="text-xl font-semibold text-gray-800">Restricted Zones</h4>
+              <h4 className="text-sm font-semibold text-gray-900">Restricted Zones</h4>
               {safeGeofences.length > 0 && (
-                <div className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-semibold">
+                <div className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-medium">
                   Total: {safeGeofences.length} zone{safeGeofences.length !== 1 ? 's' : ''}
                 </div>
               )}
             </div>
             
             {safeGeofences.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="text-center py-6">
+                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                   </svg>
                 </div>
-                <p className="text-gray-500">No restricted zones created yet. Create your first safety zone above.</p>
+                <p className="text-gray-500 text-sm">No restricted zones created yet.</p>
               </div>
             ) : (
-              <div className="space-y-4 max-h-64 overflow-y-auto">
+              <div className="space-y-3 max-h-56 overflow-y-auto">
                 {safeGeofences.map((fence, index) => {
                   const area = fence.type === 'circle' 
                     ? calculateCircleArea(fence.radius)
                     : calculatePolygonArea(fence.coordinates);
                   
                   return (
-                    <div key={fence._id || fence.id || index} className="bg-white/80 p-4 rounded-xl border border-gray-200 shadow-sm">
+                    <div key={fence._id || fence.id || index} className="bg-white p-3 rounded-lg border border-gray-200">
                       <div className="flex justify-between items-start">
                         <div>
-                          <h5 className="font-semibold text-gray-800">{fence.name}</h5>
+                          <h5 className="font-medium text-gray-900 text-sm">{fence.name}</h5>
                           <div className="flex items-center mt-1">
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${fence.type === 'circle' ? 'bg-red-100 text-red-800' : 'bg-purple-100 text-purple-800'}`}>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              fence.type === 'circle' ? 'bg-red-100 text-red-800' : 'bg-purple-100 text-purple-800'
+                            }`}>
                               {fence.type === 'circle' ? '⭕ Circular' : '🔷 Polygonal'}
                             </span>
-                            <span className="ml-2 text-sm font-semibold text-red-600">
+                            <span className="ml-2 text-xs font-medium text-red-600">
                               Area: {formatArea(area)}
                             </span>
                           </div>
                         </div>
-                        <div className="flex space-x-2">
+                        <div className="flex space-x-1">
                           <button 
                             onClick={() => viewFenceArea(fence)}
-                            className={`${viewingFence && selectedFence?._id === fence._id 
-                              ? 'bg-red-500 hover:bg-red-600' 
-                              : 'bg-blue-500 hover:bg-blue-600'
-                            } text-white px-3 py-1 rounded-lg text-sm transition-colors`}
+                            className={`${
+                              viewingFence && selectedFence?._id === fence._id 
+                                ? 'bg-red-500 hover:bg-red-600' 
+                                : 'bg-blue-500 hover:bg-blue-600'
+                            } text-white px-2 py-1 rounded text-xs transition-colors`}
                           >
-                            {viewingFence && selectedFence?._id === fence._id ? 'Close View' : 'View Fence'}
+                            {viewingFence && selectedFence?._id === fence._id ? 'Close' : 'View'}
                           </button>
                           <button 
-                            className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition-colors"
+                            className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
                             onClick={async () => {
                               try {
                                 if (!fence._id && !fence.id) {
@@ -1196,18 +1197,18 @@ const AddGeofence = ({ onGeofenceAdded }) => {
                               }
                             }}
                           >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
                           </button>
                         </div>
                       </div>
                       {fence.type === 'circle' ? (
-                        <p className="text-sm text-gray-600 mt-2">
+                        <p className="text-xs text-gray-600 mt-2">
                           Center: {fence.center?.lat?.toFixed(6) || 'N/A'}, {fence.center?.lng?.toFixed(6) || 'N/A'} • Radius: {fence.radius || 'N/A'}m
                         </p>
                       ) : (
-                        <p className="text-sm text-gray-600 mt-2">
+                        <p className="text-xs text-gray-600 mt-2">
                           Points: {fence.coordinates?.length || 0} • Perimeter: ~{(Math.sqrt(area) * 4).toFixed(0)}m
                         </p>
                       )}
