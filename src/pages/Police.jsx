@@ -1540,13 +1540,13 @@ function Police() {
           <div className="border-b px-4 py-3">
             <h3 className="font-semibold text-gray-900">Live Emergency Map</h3>
           </div>
-          <div className="p-4">
+          {/* <div className="p-4">
             <LiveGeoMap
               emergencyAlerts={emergencyAlerts}
               connectedClients={connectedClients}
               onEmergencyClick={handleOpenMap}
             />
-          </div>
+          </div> */}
         </div>
 
         {/* Emergency Alerts Table */}
